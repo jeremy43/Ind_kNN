@@ -4,12 +4,12 @@ import numpy as np
 NB_TEACHERS = [400]
 IND_BUDGETS = [1000]
 NUM_QUERY = 100
-VARS = np.exp([3., 4.])
+VARS = np.exp([1., 2., 3., 4., 5., 6., 7., 8., 10.])
 
 NOISY_SCALES = [1e-20]
 # FEATURE = 'resnet50'
 # DATASET = 'cifar10'
-FEATURE = 'all-MiniLM-L6-v2'
+FEATURE = 'all-roberta-large-v1'
 DATASET = 'sst2'
 for var in VARS:
     for ind_budget in IND_BUDGETS:

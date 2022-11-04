@@ -64,8 +64,8 @@ def extract_feature(train_datapoint, test_datapoint, feature, dataset='cifar10')
         np.save(f'{dataset}_{feature}_test.npy', test_feature)
         return train_feature, test_feature
 
-    elif feature == 'all-MiniLM-L6-v2':
-        model = SentenceTransformer('all-MiniLM-L6-v2')
+    elif feature == 'all-roberta-large-v1':
+        model = SentenceTransformer('all-roberta-large-v1')
         if os.path.exists(f'{dataset}_{feature}_train.npy'):
             train_feature = np.load(f'{dataset}_{feature}_train.npy')
             test_feature = np.load(f'{dataset}_{feature}_test.npy')

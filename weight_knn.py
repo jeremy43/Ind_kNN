@@ -65,7 +65,7 @@ def PrepareData(dataset, feature, num_query):
             # TODO: make mnist work (change to rgb)
         test_labels = test_dataset.targets
         train_labels = train_dataset.targets
-    elif feature == 'all-MiniLM-L6-v2':
+    elif feature == 'all-roberta-large-v1':
         if dataset == 'sst2':
             ori_dataset = load_dataset('glue', 'sst2')
             train_dataset = ori_dataset['train']['sentence']
