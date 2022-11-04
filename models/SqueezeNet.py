@@ -7,6 +7,7 @@ import torchvision
 
 __all__ = ['SqueezeNet']
 
+
 class ConvBlock(nn.Module):
     """Basic convolutional block:
     convolution + batch normalization + relu.
@@ -18,6 +19,7 @@ class ConvBlock(nn.Module):
         s (int or tuple): stride.
         p (int or tuple): padding.
     """
+
     def __init__(self, in_c, out_c, k, s=1, p=0):
         super(ConvBlock, self).__init__()
         self.conv = nn.Conv2d(in_c, out_c, k, stride=s, padding=p)
@@ -25,6 +27,7 @@ class ConvBlock(nn.Module):
 
     def forward(self, x):
         return F.relu(self.bn(self.conv(x)))
+
 
 class ExpandLayer(nn.Module):
     def __init__(self, in_channels, e1_channels, e3_channels):
@@ -38,6 +41,7 @@ class ExpandLayer(nn.Module):
         x = torch.cat([x11, x33], 1)
         return x
 
+
 class FireModule(nn.Module):
     """
     Args:
@@ -48,6 +52,7 @@ class FireModule(nn.Module):
 
     Number of output channels from FireModule is e1_channels + e3_channels.
     """
+
     def __init__(self, in_channels, s1_channels, e1_channels, e3_channels):
         super(FireModule, self).__init__()
         self.squeeze = ConvBlock(in_channels, s1_channels, 1)
@@ -58,6 +63,7 @@ class FireModule(nn.Module):
         x = self.expand(x)
         return x
 
+
 class SqueezeNet(nn.Module):
     """SqueezeNet
 
@@ -65,6 +71,7 @@ class SqueezeNet(nn.Module):
     Iandola et al. SqueezeNet: AlexNet-level accuracy with 50x fewer parameters
     and< 0.5 MB model size. arXiv:1602.07360.
     """
+
     def __init__(self, num_classes, loss={'xent'}, bypass=True, **kwargs):
         super(SqueezeNet, self).__init__()
         self.loss = loss
@@ -80,7 +87,7 @@ class SqueezeNet(nn.Module):
         self.fire8 = FireModule(384, 64, 256, 256)
         self.fire9 = FireModule(512, 64, 256, 256)
         self.conv10 = nn.Conv2d(512, num_classes, 1)
-        
+
         self.feat_dim = num_classes
 
     def forward(self, x):

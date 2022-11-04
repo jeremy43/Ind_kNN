@@ -16,7 +16,7 @@ from .DPN import *
 from .InceptionResNetV2 import *
 
 __factory = {
-    'naive_mnist':Naive_mnist,
+    'naive_mnist': Naive_mnist,
     'naive': Naive,
     'resnet50': ResNet50,
     'resnet101': ResNet101,
@@ -39,8 +39,10 @@ __factory = {
     'hacnn': HACNN,
 }
 
+
 def get_names():
     return __factory.keys()
+
 
 def init_model(name, *args, **kwargs):
     if name not in __factory.keys():

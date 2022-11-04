@@ -18,7 +18,6 @@ def main(dataset, augment=False, use_scattering=False, size=None,
          noise_multiplier=1, max_grad_norm=0.1, epochs=100,
          input_norm=None, num_groups=None, bn_noise_multiplier=None,
          max_epsilon=None, logdir=None, early_stop=True):
-
     logger = Logger(logdir)
     device = get_device()
 
@@ -67,10 +66,10 @@ def main(dataset, augment=False, use_scattering=False, size=None,
     model.to(device)
 
     if use_scattering and augment:
-            model = nn.Sequential(scattering, model)
-            train_loader = torch.utils.data.DataLoader(
-                train_data, batch_size=mini_batch_size, shuffle=True,
-                num_workers=1, pin_memory=True, drop_last=True)
+        model = nn.Sequential(scattering, model)
+        train_loader = torch.utils.data.DataLoader(
+            train_data, batch_size=mini_batch_size, shuffle=True,
+            num_workers=1, pin_memory=True, drop_last=True)
     else:
         # pre-compute the scattering transform if necessery
         train_loader = get_scattered_loader(train_loader, scattering, device,

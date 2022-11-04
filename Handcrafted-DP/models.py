@@ -202,7 +202,3 @@ CNNS = {
     "fmnist": MNIST_CNN,
     "mnist": MNIST_CNN,
 }
-
-
-
-

@@ -5,6 +5,7 @@ import os
 import pickle
 import numpy as np
 import logging
+
 dataset_path = '/home/yq/dataset'
 
 SHAPES = {
@@ -20,7 +21,7 @@ def get_scatter_transform(dataset):
     scattering = Scattering2D(J=2, shape=shape[:2])
     K = 81 * shape[2]
     (h, w) = shape[:2]
-    return scattering, K, (h//4, w//4)
+    return scattering, K, (h // 4, w // 4)
 
 
 def get_data(name, augment=False, **kwargs):
@@ -30,11 +31,11 @@ def get_data(name, augment=False, **kwargs):
 
         if augment:
             train_transforms = [
-                    transforms.RandomHorizontalFlip(),
-                    transforms.RandomCrop(32, 4),
-                    transforms.ToTensor(),
-                    normalize,
-                ]
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomCrop(32, 4),
+                transforms.ToTensor(),
+                normalize,
+            ]
         else:
             train_transforms = [
                 transforms.ToTensor(),
@@ -51,8 +52,8 @@ def get_data(name, augment=False, **kwargs):
                                     ))
     elif name == "cifar100":
         transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),])
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ])
 
         train_set = datasets.CIFAR100(root=dataset_path, train=True, download=True, transform=transform_test)
 
@@ -145,7 +146,7 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
             # note that we use unsup indices to track the labeled datapoints
             # whose labels are "fake"
             self.unsup_indices.extend(
-                range(orig_len, orig_len+len(aux_data)))
+                range(orig_len, orig_len + len(aux_data)))
 
             logger = logging.getLogger()
             logger.info("Training set")
@@ -217,11 +218,11 @@ class SemiSupervisedSampler(torch.utils.data.Sampler):
         batch_counter = 0
         inds_shuffled = [self.inds[i] for i in torch.randperm(len(self.inds))]
 
-        while len(inds_shuffled) < self.num_batches*self.batch_size:
+        while len(inds_shuffled) < self.num_batches * self.batch_size:
             temp = [self.inds[i] for i in torch.randperm(len(self.inds))]
             inds_shuffled.extend(temp)
 
-        for k in range(0, self.num_batches*self.batch_size, self.batch_size):
+        for k in range(0, self.num_batches * self.batch_size, self.batch_size):
             if batch_counter == self.num_batches:
                 break
 

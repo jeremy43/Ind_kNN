@@ -109,6 +109,7 @@ class Bottleneck(nn.Module):
     """
     Base class for bottlenecks that implements `forward()` method.
     """
+
     def forward(self, x):
         residual = x
 
@@ -442,6 +443,7 @@ def se_resnext101_32x4d(num_classes=1000, pretrained='imagenet'):
         initialize_pretrained_model(model, num_classes, settings)
     return model
 
+
 ##################### Model Definition #########################
 
 class SEResNet50(nn.Module):
@@ -451,7 +453,7 @@ class SEResNet50(nn.Module):
         base = se_resnet50()
         self.base = nn.Sequential(*list(base.children())[:-2])
         self.classifier = nn.Linear(2048, num_classes)
-        self.feat_dim = 2048 # feature dimension
+        self.feat_dim = 2048  # feature dimension
 
     def forward(self, x):
         x = self.base(x)
@@ -471,6 +473,7 @@ class SEResNet50(nn.Module):
             return y, f
         else:
             raise KeyError("Unsupported loss: {}".format(self.loss))
+
 
 class SEResNet101(nn.Module):
     def __init__(self, num_classes, loss={'xent'}, **kwargs):
@@ -479,7 +482,7 @@ class SEResNet101(nn.Module):
         base = se_resnet101()
         self.base = nn.Sequential(*list(base.children())[:-2])
         self.classifier = nn.Linear(2048, num_classes)
-        self.feat_dim = 2048 # feature dimension
+        self.feat_dim = 2048  # feature dimension
 
     def forward(self, x):
         x = self.base(x)
@@ -499,6 +502,7 @@ class SEResNet101(nn.Module):
             return y, f
         else:
             raise KeyError("Unsupported loss: {}".format(self.loss))
+
 
 class SEResNeXt50(nn.Module):
     def __init__(self, num_classes, loss={'xent'}, **kwargs):
@@ -507,7 +511,7 @@ class SEResNeXt50(nn.Module):
         base = se_resnext50_32x4d()
         self.base = nn.Sequential(*list(base.children())[:-2])
         self.classifier = nn.Linear(2048, num_classes)
-        self.feat_dim = 2048 # feature dimension
+        self.feat_dim = 2048  # feature dimension
 
     def forward(self, x):
         x = self.base(x)
@@ -528,6 +532,7 @@ class SEResNeXt50(nn.Module):
         else:
             raise KeyError("Unsupported loss: {}".format(self.loss))
 
+
 class SEResNeXt101(nn.Module):
     def __init__(self, num_classes, loss={'xent'}, **kwargs):
         super(SEResNeXt101, self).__init__()
@@ -535,7 +540,7 @@ class SEResNeXt101(nn.Module):
         base = se_resnext101_32x4d()
         self.base = nn.Sequential(*list(base.children())[:-2])
         self.classifier = nn.Linear(2048, num_classes)
-        self.feat_dim = 2048 # feature dimension
+        self.feat_dim = 2048  # feature dimension
 
     def forward(self, x):
         x = self.base(x)

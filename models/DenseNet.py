@@ -7,6 +7,7 @@ import torchvision
 
 __all__ = ['DenseNet121']
 
+
 class DenseNet121(nn.Module):
     def __init__(self, num_classes, loss={'xent'}, **kwargs):
         super(DenseNet121, self).__init__()
@@ -14,7 +15,7 @@ class DenseNet121(nn.Module):
         densenet121 = torchvision.models.densenet121(pretrained=True)
         self.base = densenet121.features
         self.classifier = nn.Linear(1024, num_classes)
-        self.feat_dim = 1024 # feature dimension
+        self.feat_dim = 1024  # feature dimension
 
     def forward(self, x):
         x = self.base(x)
@@ -23,7 +24,7 @@ class DenseNet121(nn.Module):
         if not self.training:
             return f
         y = self.classifier(f)
-        
+
         if self.loss == {'xent'}:
             return y
         elif self.loss == {'xent', 'htri'}:

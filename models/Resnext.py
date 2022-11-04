@@ -1,4 +1,5 @@
 from __future__ import division
+
 """ 
 Creates a ResNeXt Model as defined in:
 Xie, S., Girshick, R., Dollar, P., Tu, Z., & He, K. (2016). 
@@ -17,6 +18,7 @@ class ResNeXtBottleneck(nn.Module):
     """
     RexNeXt bottleneck type C (https://github.com/facebookresearch/ResNeXt/blob/master/models/resnext.lua)
     """
+
     def __init__(self, in_channels, out_channels, stride, cardinality, widen_factor):
         """ Constructor
         Args:
@@ -67,6 +69,7 @@ class CifarResNeXt(nn.Module):
     ResNext optimized for the Cifar dataset, as specified in
     https://arxiv.org/pdf/1611.05431.pdf
     """
+
     def __init__(self, cardinality, depth, num_classes, widen_factor=4, dropRate=0):
         """ Constructor
         Args:
@@ -130,7 +133,7 @@ class CifarResNeXt(nn.Module):
         x = F.avg_pool2d(x, 8, 1)
         x = x.view(-1, 1024)
         return x
-        #return self.classifier(x)
+        # return self.classifier(x)
 
     def train(self, mode=True, freeze_DP=True):
         super(CifarResNeXt, self).train(mode)

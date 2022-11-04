@@ -7,6 +7,7 @@ import torchvision
 
 __all__ = ['Xception']
 
+
 class ConvBlock(nn.Module):
     """Basic convolutional block:
     convolution (bias discarded) + batch normalization + relu6.
@@ -20,6 +21,7 @@ class ConvBlock(nn.Module):
         g (int): number of blocked connections from input channels
                  to output channels (default: 1).
     """
+
     def __init__(self, in_c, out_c, k, s=1, p=0, g=1):
         super(ConvBlock, self).__init__()
         self.conv = nn.Conv2d(in_c, out_c, k, stride=s, padding=p, bias=False, groups=g)
@@ -27,6 +29,7 @@ class ConvBlock(nn.Module):
 
     def forward(self, x):
         return F.relu6(self.bn(self.conv(x)))
+
 
 class SepConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -43,12 +46,13 @@ class SepConv(nn.Module):
     def forward(self, x):
         return self.conv2(self.conv1(x))
 
+
 class EntryFLow(nn.Module):
     def __init__(self, nchannels):
         super(EntryFLow, self).__init__()
         self.conv1 = ConvBlock(3, nchannels[0], 3, s=2, p=1)
         self.conv2 = ConvBlock(nchannels[0], nchannels[1], 3, p=1)
-        
+
         self.conv3 = nn.Sequential(
             SepConv(nchannels[1], nchannels[2]),
             nn.ReLU(),
@@ -60,7 +64,7 @@ class EntryFLow(nn.Module):
             nn.Conv2d(nchannels[1], nchannels[2], 1, stride=2, bias=False),
             nn.BatchNorm2d(nchannels[2]),
         )
-        
+
         self.conv4 = nn.Sequential(
             nn.ReLU(),
             SepConv(nchannels[2], nchannels[3]),
@@ -73,7 +77,7 @@ class EntryFLow(nn.Module):
             nn.Conv2d(nchannels[2], nchannels[3], 1, stride=2, bias=False),
             nn.BatchNorm2d(nchannels[3])
         )
-        
+
         self.conv5 = nn.Sequential(
             nn.ReLU(),
             SepConv(nchannels[3], nchannels[4]),
@@ -90,11 +94,11 @@ class EntryFLow(nn.Module):
     def forward(self, x):
         x1 = self.conv1(x)
         x2 = self.conv2(x1)
-        
+
         x3 = self.conv3(x2)
         x3s = self.conv3s(x2)
         x3 = x3 + x3s
-        
+
         x4 = self.conv4(x3)
         x4s = self.conv4s(x3)
         x4 = x4 + x4s
@@ -104,6 +108,7 @@ class EntryFLow(nn.Module):
         x5 = x5 + x5s
 
         return x5
+
 
 class MidFlowBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -117,6 +122,7 @@ class MidFlowBlock(nn.Module):
         x = self.conv2(F.relu(x))
         x = self.conv3(F.relu(x))
         return x
+
 
 class MidFlow(nn.Module):
     def __init__(self, in_channels, out_channels, num_repeats):
@@ -132,6 +138,7 @@ class MidFlow(nn.Module):
 
     def forward(self, x):
         return self.blocks(x)
+
 
 class ExitFlow(nn.Module):
     def __init__(self, in_channels, nchannels):
@@ -157,12 +164,14 @@ class ExitFlow(nn.Module):
         x4 = F.avg_pool2d(x4, x4.size()[2:]).view(x4.size(0), -1)
         return x4
 
+
 class Xception(nn.Module):
     """Xception
 
     Reference:
     Chollet. Xception: Deep Learning with Depthwise Separable Convolutions. CVPR 2017.
     """
+
     def __init__(self, num_classes, loss={'xent'}, num_mid_flows=8, **kwargs):
         super(Xception, self).__init__()
         self.loss = loss
@@ -177,7 +186,7 @@ class Xception(nn.Module):
         x = self.entryflow(x)
         x = self.midflow(x)
         x = self.exitflow(x)
-        
+
         if not self.training:
             return x
 

@@ -22,7 +22,7 @@ def train(model, train_loader, optimizer, n_acc_steps=1):
 
     bs = train_loader.batch_size if train_loader.batch_size is not None else train_loader.batch_sampler.batch_size
     print(f"training on {num_batches} batches of size {bs}")
-    print(f"length of training loader is {len(train_loader)}") 
+    print(f"length of training loader is {len(train_loader)}")
     for batch_idx, (data, target) in enumerate(train_loader):
 
         if batch_idx > num_batches - 1:
@@ -52,7 +52,7 @@ def train(model, train_loader, optimizer, n_acc_steps=1):
     train_acc = 100. * correct / num_examples
 
     print(f'Train set: Average loss: {train_loss:.4f}, '
-            f'Accuracy: {correct}/{num_examples} ({train_acc:.2f}%)')
+          f'Accuracy: {correct}/{num_examples} ({train_acc:.2f}%)')
 
     return train_loss, train_acc
 

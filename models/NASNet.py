@@ -28,10 +28,10 @@ Code imported from https://github.com/Cadene/pretrained-models.pytorch
 pretrained_settings = {
     'nasnetamobile': {
         'imagenet': {
-            #'url': 'https://github.com/veronikayurchuk/pretrained-models.pytorch/releases/download/v1.0/nasnetmobile-7e03cead.pth.tar',
+            # 'url': 'https://github.com/veronikayurchuk/pretrained-models.pytorch/releases/download/v1.0/nasnetmobile-7e03cead.pth.tar',
             'url': 'http://data.lip6.fr/cadene/pretrainedmodels/nasnetamobile-7e03cead.pth',
             'input_space': 'RGB',
-            'input_size': [3, 224, 224], # resize 256
+            'input_size': [3, 224, 224],  # resize 256
             'input_range': [0, 1],
             'mean': [0.5, 0.5, 0.5],
             'std': [0.5, 0.5, 0.5],
@@ -50,6 +50,7 @@ pretrained_settings = {
 }
 
 __all__ = ['NASNetAMobile']
+
 
 class MaxPoolPad(nn.Module):
 
@@ -220,17 +221,17 @@ class CellStem1(nn.Module):
         self.stem_filters = stem_filters
         self.conv_1x1 = nn.Sequential()
         self.conv_1x1.add_module('relu', nn.ReLU())
-        self.conv_1x1.add_module('conv', nn.Conv2d(2*self.num_filters, self.num_filters, 1, stride=1, bias=False))
+        self.conv_1x1.add_module('conv', nn.Conv2d(2 * self.num_filters, self.num_filters, 1, stride=1, bias=False))
         self.conv_1x1.add_module('bn', nn.BatchNorm2d(self.num_filters, eps=0.001, momentum=0.1, affine=True))
 
         self.relu = nn.ReLU()
         self.path_1 = nn.Sequential()
         self.path_1.add_module('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False))
-        self.path_1.add_module('conv', nn.Conv2d(self.stem_filters, self.num_filters//2, 1, stride=1, bias=False))
+        self.path_1.add_module('conv', nn.Conv2d(self.stem_filters, self.num_filters // 2, 1, stride=1, bias=False))
         self.path_2 = nn.ModuleList()
         self.path_2.add_module('pad', nn.ZeroPad2d((0, 1, 0, 1)))
         self.path_2.add_module('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False))
-        self.path_2.add_module('conv', nn.Conv2d(self.stem_filters, self.num_filters//2, 1, stride=1, bias=False))
+        self.path_2.add_module('conv', nn.Conv2d(self.stem_filters, self.num_filters // 2, 1, stride=1, bias=False))
 
         self.final_path_bn = nn.BatchNorm2d(self.num_filters, eps=0.001, momentum=0.1, affine=True)
 
@@ -494,7 +495,7 @@ class ReductionCell1(nn.Module):
 
         self.comb_iter_4_left = BranchSeparables(out_channels_right, out_channels_right, 3, 1, 1, name='specific', bias=False)
         # self.comb_iter_4_right = nn.MaxPool2d(3, stride=2, padding=1)
-        self.comb_iter_4_right =MaxPoolPad()
+        self.comb_iter_4_right = MaxPoolPad()
 
     def forward(self, x, x_prev):
         x_left = self.conv_prev_1x1(x_prev)
@@ -545,43 +546,43 @@ class NASNetAMobile(nn.Module):
         self.cell_stem_0 = CellStem0(self.stem_filters, num_filters=filters // (filters_multiplier ** 2))
         self.cell_stem_1 = CellStem1(self.stem_filters, num_filters=filters // filters_multiplier)
 
-        self.cell_0 = FirstCell(in_channels_left=filters, out_channels_left=filters//2, # 1, 0.5
-                                in_channels_right=2*filters, out_channels_right=filters) # 2, 1
-        self.cell_1 = NormalCell(in_channels_left=2*filters, out_channels_left=filters, # 2, 1
-                                 in_channels_right=6*filters, out_channels_right=filters) # 6, 1
-        self.cell_2 = NormalCell(in_channels_left=6*filters, out_channels_left=filters, # 6, 1
-                                 in_channels_right=6*filters, out_channels_right=filters) # 6, 1
-        self.cell_3 = NormalCell(in_channels_left=6*filters, out_channels_left=filters, # 6, 1
-                                 in_channels_right=6*filters, out_channels_right=filters) # 6, 1
+        self.cell_0 = FirstCell(in_channels_left=filters, out_channels_left=filters // 2,  # 1, 0.5
+                                in_channels_right=2 * filters, out_channels_right=filters)  # 2, 1
+        self.cell_1 = NormalCell(in_channels_left=2 * filters, out_channels_left=filters,  # 2, 1
+                                 in_channels_right=6 * filters, out_channels_right=filters)  # 6, 1
+        self.cell_2 = NormalCell(in_channels_left=6 * filters, out_channels_left=filters,  # 6, 1
+                                 in_channels_right=6 * filters, out_channels_right=filters)  # 6, 1
+        self.cell_3 = NormalCell(in_channels_left=6 * filters, out_channels_left=filters,  # 6, 1
+                                 in_channels_right=6 * filters, out_channels_right=filters)  # 6, 1
 
-        self.reduction_cell_0 = ReductionCell0(in_channels_left=6*filters, out_channels_left=2*filters, # 6, 2
-                                               in_channels_right=6*filters, out_channels_right=2*filters) # 6, 2
+        self.reduction_cell_0 = ReductionCell0(in_channels_left=6 * filters, out_channels_left=2 * filters,  # 6, 2
+                                               in_channels_right=6 * filters, out_channels_right=2 * filters)  # 6, 2
 
-        self.cell_6 = FirstCell(in_channels_left=6*filters, out_channels_left=filters, # 6, 1
-                                in_channels_right=8*filters, out_channels_right=2*filters) # 8, 2
-        self.cell_7 = NormalCell(in_channels_left=8*filters, out_channels_left=2*filters, # 8, 2
-                                 in_channels_right=12*filters, out_channels_right=2*filters) # 12, 2
-        self.cell_8 = NormalCell(in_channels_left=12*filters, out_channels_left=2*filters, # 12, 2
-                                 in_channels_right=12*filters, out_channels_right=2*filters) # 12, 2
-        self.cell_9 = NormalCell(in_channels_left=12*filters, out_channels_left=2*filters, # 12, 2
-                                 in_channels_right=12*filters, out_channels_right=2*filters) # 12, 2
+        self.cell_6 = FirstCell(in_channels_left=6 * filters, out_channels_left=filters,  # 6, 1
+                                in_channels_right=8 * filters, out_channels_right=2 * filters)  # 8, 2
+        self.cell_7 = NormalCell(in_channels_left=8 * filters, out_channels_left=2 * filters,  # 8, 2
+                                 in_channels_right=12 * filters, out_channels_right=2 * filters)  # 12, 2
+        self.cell_8 = NormalCell(in_channels_left=12 * filters, out_channels_left=2 * filters,  # 12, 2
+                                 in_channels_right=12 * filters, out_channels_right=2 * filters)  # 12, 2
+        self.cell_9 = NormalCell(in_channels_left=12 * filters, out_channels_left=2 * filters,  # 12, 2
+                                 in_channels_right=12 * filters, out_channels_right=2 * filters)  # 12, 2
 
-        self.reduction_cell_1 = ReductionCell1(in_channels_left=12*filters, out_channels_left=4*filters, # 12, 4
-                                               in_channels_right=12*filters, out_channels_right=4*filters) # 12, 4
+        self.reduction_cell_1 = ReductionCell1(in_channels_left=12 * filters, out_channels_left=4 * filters,  # 12, 4
+                                               in_channels_right=12 * filters, out_channels_right=4 * filters)  # 12, 4
 
-        self.cell_12 = FirstCell(in_channels_left=12*filters, out_channels_left=2*filters, # 12, 2
-                                 in_channels_right=16*filters, out_channels_right=4*filters) # 16, 4
-        self.cell_13 = NormalCell(in_channels_left=16*filters, out_channels_left=4*filters, # 16, 4
-                                  in_channels_right=24*filters, out_channels_right=4*filters) # 24, 4
-        self.cell_14 = NormalCell(in_channels_left=24*filters, out_channels_left=4*filters, # 24, 4
-                                  in_channels_right=24*filters, out_channels_right=4*filters) # 24, 4
-        self.cell_15 = NormalCell(in_channels_left=24*filters, out_channels_left=4*filters, # 24, 4
-                                  in_channels_right=24*filters, out_channels_right=4*filters) # 24, 4
+        self.cell_12 = FirstCell(in_channels_left=12 * filters, out_channels_left=2 * filters,  # 12, 2
+                                 in_channels_right=16 * filters, out_channels_right=4 * filters)  # 16, 4
+        self.cell_13 = NormalCell(in_channels_left=16 * filters, out_channels_left=4 * filters,  # 16, 4
+                                  in_channels_right=24 * filters, out_channels_right=4 * filters)  # 24, 4
+        self.cell_14 = NormalCell(in_channels_left=24 * filters, out_channels_left=4 * filters,  # 24, 4
+                                  in_channels_right=24 * filters, out_channels_right=4 * filters)  # 24, 4
+        self.cell_15 = NormalCell(in_channels_left=24 * filters, out_channels_left=4 * filters,  # 24, 4
+                                  in_channels_right=24 * filters, out_channels_right=4 * filters)  # 24, 4
 
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout()
-        self.classifier = nn.Linear(24*filters, self.num_classes)
-        self.feat_dim = 24*filters
+        self.classifier = nn.Linear(24 * filters, self.num_classes)
+        self.feat_dim = 24 * filters
 
         self.init_params()
 
@@ -644,7 +645,10 @@ class NASNetAMobile(nn.Module):
         else:
             raise KeyError("Unsupported loss: {}".format(self.loss))
 
+
 """Following code is not used"""
+
+
 def nasnetamobile(num_classes=1001, pretrained='imagenet'):
     r"""NASNetALarge model architecture from the
     `"NASNet" <https://arxiv.org/abs/1707.07012>`_ paper.
@@ -658,11 +662,11 @@ def nasnetamobile(num_classes=1001, pretrained='imagenet'):
         model = NASNetAMobile(num_classes=num_classes)
         model.load_state_dict(model_zoo.load_url(settings['url'], map_location=None))
 
-       # if pretrained == 'imagenet':
-       #     new_last_linear = nn.Linear(model.last_linear.in_features, 1000)
-       #     new_last_linear.weight.data = model.last_linear.weight.data[1:]
-       #     new_last_linear.bias.data = model.last_linear.bias.data[1:]
-       #     model.last_linear = new_last_linear
+        # if pretrained == 'imagenet':
+        #     new_last_linear = nn.Linear(model.last_linear.in_features, 1000)
+        #     new_last_linear.weight.data = model.last_linear.weight.data[1:]
+        #     new_last_linear.bias.data = model.last_linear.bias.data[1:]
+        #     model.last_linear = new_last_linear
 
         model.input_space = settings['input_space']
         model.input_size = settings['input_size']

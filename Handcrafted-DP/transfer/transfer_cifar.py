@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import sys, os
+
 sys.path.append('../')
 import torch
 import torch.nn as nn
@@ -12,11 +13,12 @@ from data import get_data
 from dp_utils import ORDERS, get_privacy_spent, get_renyi_divergence
 from log import Logger
 
-dataset='cifar100'
+dataset = 'cifar100'
+
+
 def main(feature_path=None, batch_size=2048, mini_batch_size=256,
          lr=1, optim="SGD", momentum=0.9, nesterov=False, noise_multiplier=1,
          max_grad_norm=0.1, max_epsilon=None, epochs=100, logdir=None):
-
     logger = Logger(logdir)
 
     device = get_device()
@@ -57,7 +59,7 @@ def main(feature_path=None, batch_size=2048, mini_batch_size=256,
                                     nesterov=nesterov)
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    print('sample_rate', bs/len(train_data), 'batch_size', bs, 'len of train_data', len(train_data))
+    print('sample_rate', bs / len(train_data), 'batch_size', bs, 'len of train_data', len(train_data))
     privacy_engine = PrivacyEngine(
         model,
         sample_rate=bs / len(train_data),

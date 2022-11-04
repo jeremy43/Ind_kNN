@@ -7,6 +7,7 @@ import torchvision
 
 __all__ = ['HACNN']
 
+
 class ConvBlock(nn.Module):
     """Basic convolutional block:
     convolution + batch normalization + relu.
@@ -18,6 +19,7 @@ class ConvBlock(nn.Module):
         s (int or tuple): stride.
         p (int or tuple): padding.
     """
+
     def __init__(self, in_c, out_c, k, s=1, p=0):
         super(ConvBlock, self).__init__()
         self.conv = nn.Conv2d(in_c, out_c, k, stride=s, padding=p)
@@ -26,12 +28,14 @@ class ConvBlock(nn.Module):
     def forward(self, x):
         return F.relu(self.bn(self.conv(x)))
 
+
 class InceptionA(nn.Module):
     """
     Args:
         in_channels (int): number of input channels
         out_channels (int): number of output channels AFTER concatenation
     """
+
     def __init__(self, in_channels, out_channels):
         super(InceptionA, self).__init__()
         single_out_channels = out_channels // 4
@@ -61,12 +65,14 @@ class InceptionA(nn.Module):
         y = torch.cat([s1, s2, s3, s4], dim=1)
         return y
 
+
 class InceptionB(nn.Module):
     """
     Args:
         in_channels (int): number of input channels
         out_channels (int): number of output channels AFTER concatenation
     """
+
     def __init__(self, in_channels, out_channels):
         super(InceptionB, self).__init__()
         single_out_channels = out_channels // 4
@@ -82,7 +88,7 @@ class InceptionB(nn.Module):
         )
         self.stream3 = nn.Sequential(
             nn.MaxPool2d(3, stride=2, padding=1),
-            ConvBlock(in_channels, single_out_channels*2, 1),
+            ConvBlock(in_channels, single_out_channels * 2, 1),
         )
 
     def forward(self, x):
@@ -92,8 +98,10 @@ class InceptionB(nn.Module):
         y = torch.cat([s1, s2, s3], dim=1)
         return y
 
+
 class SpatialAttn(nn.Module):
     """Spatial Attention (Sec. 3.1.I.1)"""
+
     def __init__(self):
         super(SpatialAttn, self).__init__()
         self.conv1 = ConvBlock(1, 1, 3, s=2, p=1)
@@ -105,18 +113,20 @@ class SpatialAttn(nn.Module):
         # 3-by-3 conv
         x = self.conv1(x)
         # bilinear resizing
-        x = F.upsample(x, (x.size(2)*2, x.size(3)*2), mode='bilinear', align_corners=True)
+        x = F.upsample(x, (x.size(2) * 2, x.size(3) * 2), mode='bilinear', align_corners=True)
         # scaling conv
         x = self.conv2(x)
         return x
 
+
 class ChannelAttn(nn.Module):
     """Channel Attention (Sec. 3.1.I.2)"""
+
     def __init__(self, in_channels, reduction_rate=16):
         super(ChannelAttn, self).__init__()
-        assert in_channels%reduction_rate == 0
-        self.conv1 = ConvBlock(in_channels, in_channels//reduction_rate, 1)
-        self.conv2 = ConvBlock(in_channels//reduction_rate, in_channels, 1)
+        assert in_channels % reduction_rate == 0
+        self.conv1 = ConvBlock(in_channels, in_channels // reduction_rate, 1)
+        self.conv2 = ConvBlock(in_channels // reduction_rate, in_channels, 1)
 
     def forward(self, x):
         # squeeze operation (global average pooling)
@@ -126,11 +136,13 @@ class ChannelAttn(nn.Module):
         x = self.conv2(x)
         return x
 
+
 class SoftAttn(nn.Module):
     """Soft Attention (Sec. 3.1.I)
     Aim: Spatial Attention + Channel Attention
     Output: attention maps with shape identical to input.
     """
+
     def __init__(self, in_channels):
         super(SoftAttn, self).__init__()
         self.spatial_attn = SpatialAttn()
@@ -144,11 +156,13 @@ class SoftAttn(nn.Module):
         y = F.sigmoid(self.conv(y))
         return y
 
+
 class HardAttn(nn.Module):
     """Hard Attention (Sec. 3.1.II)"""
+
     def __init__(self, in_channels):
         super(HardAttn, self).__init__()
-        self.fc = nn.Linear(in_channels, 4*2)
+        self.fc = nn.Linear(in_channels, 4 * 2)
         self.init_params()
 
     def init_params(self):
@@ -163,8 +177,10 @@ class HardAttn(nn.Module):
         theta = theta.view(-1, 4, 2)
         return theta
 
+
 class HarmAttn(nn.Module):
     """Harmonious Attention (Sec. 3.1)"""
+
     def __init__(self, in_channels):
         super(HarmAttn, self).__init__()
         self.soft_attn = SoftAttn(in_channels)
@@ -174,6 +190,7 @@ class HarmAttn(nn.Module):
         y_soft_attn = self.soft_attn(x)
         theta = self.hard_attn(x)
         return y_soft_attn, theta
+
 
 class HACNN(nn.Module):
     """
@@ -188,6 +205,7 @@ class HACNN(nn.Module):
         feat_dim (int): feature dimension for a single stream
         learn_region (bool): whether to learn region features (i.e. local branch)
     """
+
     def __init__(self, num_classes, loss={'xent'}, nchannels=[128, 256, 384], feat_dim=512, learn_region=True, use_gpu=True, **kwargs):
         super(HACNN, self).__init__()
         self.loss = loss
@@ -231,7 +249,7 @@ class HACNN(nn.Module):
             self.local_conv2 = InceptionB(nchannels[0], nchannels[1])
             self.local_conv3 = InceptionB(nchannels[1], nchannels[2])
             self.fc_local = nn.Sequential(
-                nn.Linear(nchannels[2]*4, feat_dim),
+                nn.Linear(nchannels[2] * 4, feat_dim),
                 nn.BatchNorm1d(feat_dim),
                 nn.ReLU(),
             )
@@ -262,8 +280,8 @@ class HACNN(nn.Module):
         resulting in (batch, 2, 3)"""
         scale_factors = self.scale_factors[region_idx]
         theta = torch.zeros(theta_i.size(0), 2, 3)
-        theta[:,:,:2] = scale_factors
-        theta[:,:,-1] = theta_i
+        theta[:, :, :2] = scale_factors
+        theta[:, :, -1] = theta_i
         if self.use_gpu: theta = theta.cuda()
         return theta
 
@@ -281,7 +299,7 @@ class HACNN(nn.Module):
         if self.learn_region:
             x1_local_list = []
             for region_idx in range(4):
-                x1_theta_i = x1_theta[:,region_idx,:]
+                x1_theta_i = x1_theta[:, region_idx, :]
                 x1_theta_i = self.transform_theta(x1_theta_i, region_idx)
                 x1_trans_i = self.stn(x, x1_theta_i)
                 x1_trans_i = F.upsample(x1_trans_i, (24, 28), mode='bilinear', align_corners=True)
@@ -298,7 +316,7 @@ class HACNN(nn.Module):
         if self.learn_region:
             x2_local_list = []
             for region_idx in range(4):
-                x2_theta_i = x2_theta[:,region_idx,:]
+                x2_theta_i = x2_theta[:, region_idx, :]
                 x2_theta_i = self.transform_theta(x2_theta_i, region_idx)
                 x2_trans_i = self.stn(x1_out, x2_theta_i)
                 x2_trans_i = F.upsample(x2_trans_i, (12, 14), mode='bilinear', align_corners=True)
@@ -316,7 +334,7 @@ class HACNN(nn.Module):
         if self.learn_region:
             x3_local_list = []
             for region_idx in range(4):
-                x3_theta_i = x3_theta[:,region_idx,:]
+                x3_theta_i = x3_theta[:, region_idx, :]
                 x3_theta_i = self.transform_theta(x3_theta_i, region_idx)
                 x3_trans_i = self.stn(x2_out, x3_theta_i)
                 x3_trans_i = F.upsample(x3_trans_i, (6, 7), mode='bilinear', align_corners=True)
@@ -350,7 +368,7 @@ class HACNN(nn.Module):
         prelogits_global = self.classifier_global(x_global)
         if self.learn_region:
             prelogits_local = self.classifier_local(x_local)
-        
+
         if self.loss == {'xent'}:
             if self.learn_region:
                 return (prelogits_global, prelogits_local)

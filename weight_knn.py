@@ -4,18 +4,17 @@ from torchvision.models import resnet50, ResNet50_Weights
 from torchvision import datasets as dataset
 from PIL import Image
 import numpy as np
-import torch
-import network
-from torch.utils.data import DataLoader
-import aggregation
 import utils
 import sys
 import os
 import metrics
+import argparse
 from utils import extract_feature
 
+dataset_path = '/Users/xuandongzhao/Downloads/dataset'
 
-dataset_path = '/home/yq/dataset'
+
+# dataset_path = '/home/yq/dataset'
 
 
 def PrepareData(dataset, feature, num_query):
@@ -33,55 +32,50 @@ def PrepareData(dataset, feature, num_query):
 
     """
 
-    # Load the dataset
-    if dataset == 'mnist':
-        normalize = transforms.Normalize(mean=[0.485], std=[0.22])
-
-        train_dataset = datasets.MNIST(root=dataset_path, train=False, download=True,
-                                    transform=transforms.Compose(
-                                        [transforms.ToTensor(), normalize]
-                                    ))
-        test_dataset = datasets.MNIST(root=dataset_path, train=False, download=True,
-                                     transform=transforms.Compose(
-                                        [transforms.ToTensor(), normalize]
-                                    ))
-        scattering, K, (h, w) = utils.get_scatter_transform()
-        train_data, test_data = extract_feature(train_dataset, test_dataset)
-        test_labels = test_dataset.targets
-        train_labels = train_dataset.targets
-        return train_data, train_labels, test_data, test_labels
     if feature == 'resnet50':
         weight = ResNet50_Weights.IMAGENET1K_V2
         preprocess = weight.transforms()
         if dataset == 'cifar10':
-            train_dataset = datasets.CIFAR10(root=dataset_path, train=True, download=True,transform=transforms.Compose(
-                                        [transforms.ToTensor(), preprocess]
-                                    ))
+            train_dataset = datasets.CIFAR10(root=dataset_path, train=True, download=True,
+                                             transform=transforms.Compose(
+                                                 [transforms.ToTensor(), preprocess]
+                                             ))
             test_dataset = datasets.CIFAR10(root=dataset_path, train=False, download=True,
-                                       transform=transforms.Compose(
-                                           [transforms.ToTensor(), preprocess]
-                                       ))
+                                            transform=transforms.Compose(
+                                                [transforms.ToTensor(), preprocess]
+                                            ))
         elif dataset == 'cifar100':
-            train_dataset = datasets.CIFAR100(root=dataset_path, train=True, download=True,transform=transforms.Compose(
-                                        [transforms.ToTensor(), preprocess]
-                                    ))
-        test_dataset = datasets.CIFAR100(root=dataset_path, train=False, download=True,
-                                       transform=transforms.Compose(
-                                           [transforms.ToTensor(), preprocess]
-                                       ))
-    elif feature == 'resnext29':
+            train_dataset = datasets.CIFAR100(root=dataset_path, train=True, download=True,
+                                              transform=transforms.Compose(
+                                                  [transforms.ToTensor(), preprocess]
+                                              ))
+            test_dataset = datasets.CIFAR100(root=dataset_path, train=False, download=True,
+                                             transform=transforms.Compose(
+                                                 [transforms.ToTensor(), preprocess]
+                                             ))
+        elif dataset == 'mnist':
+            train_dataset = datasets.MNIST(root=dataset_path, train=False, download=True,
+                                           transform=transforms.Compose(
+                                               [transforms.ToTensor(), preprocess]
+                                           ))
+            test_dataset = datasets.MNIST(root=dataset_path, train=False, download=True,
+                                          transform=transforms.Compose(
+                                              [transforms.ToTensor(), preprocess]
+                                          ))
+            # TODO: make mnist work (change to rgb)
+    elif feature == 'resnet29':
         normalize = transforms.Normalize(mean=[0.491, 0.482, 0.4465],
                                          std=[0.202, 0.1994, 0.2010])
-        
-        train_dataset = datasets.CIFAR10(root=dataset_path, train=True, download=True,transform=transforms.Compose(
-                                        [transforms.ToTensor(), normalize]
-                                    ))
+
+        train_dataset = datasets.CIFAR10(root=dataset_path, train=True, download=True,
+                                         transform=transforms.Compose(
+                                             [transforms.ToTensor(), normalize]
+                                         ))
         test_dataset = datasets.CIFAR10(root=dataset_path, train=False, download=True,
-                                       transform=transforms.Compose(
-                                           [transforms.ToTensor(), normalize]
-                                       ))
-        
-         
+                                        transform=transforms.Compose(
+                                            [transforms.ToTensor(), normalize]
+                                        ))
+
     train_data, test_data = extract_feature(train_dataset, test_dataset, feature, dataset)
     test_labels = test_dataset.targets
     train_labels = train_dataset.targets
@@ -103,55 +97,54 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
     predict_labels = []
     for idx in range(num_query):
         query_data = query_data_list[idx]
-        if idx % 100 ==0:
+        if idx % 100 == 0:
             print('current query idx', idx)
 
-        filter_private_data  = private_data_list[mask_idx>0]
+        filter_private_data = private_data_list[mask_idx > 0]
         # Implement no sampling strategy first
-        #select_teacher = np.random.choice(private_data.shape[0], int(prob * num_train))
+        # select_teacher = np.random.choice(private_data.shape[0], int(prob * num_train))
         dis = np.linalg.norm(filter_private_data - query_data, axis=1)
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
-        #print(f"argsort={keep_idx}")
+        # print(f"argsort={keep_idx}")
         original_topk_index_set = keep_idx[np.argsort(dis)[:nb_teachers]]
-        #print(f"original_topk_index_set={original_topk_index_set}")
+        # print(f"original_topk_index_set={original_topk_index_set}")
         # For each data in original_tok_index, update their individual accountant.
-        kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i]-query_data)**2/var) for i in original_topk_index_set]
-        #copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
+        kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
+        # copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
         kernel_weight = np.asarray(kernel_weight)
         sum_kernel_weight = sum(kernel_weight)
-        #print('sum_kernel_weight', sum_kernel_weight)
-        normalized_weight = kernel_weight/ sum_kernel_weight * nb_teachers
+        # print('sum_kernel_weight', sum_kernel_weight)
+        normalized_weight = kernel_weight / sum_kernel_weight * nb_teachers
         vote_count = np.zeros(nb_labels)
-        #print('normalized_weight', normalized_weight)
-        #print('vote_count', vote_count)
+        # print('normalized_weight', normalized_weight)
+        # print('vote_count', vote_count)
         for i in range(len(original_topk_index_set)):
             select_top_k = original_topk_index_set[i]
-            mask_idx[select_top_k]-=normalized_weight[i]
-            #mask_idx[select_top_k]-= 1
-            #print('norm', normalized_weight[i])
-            #vote_count[private_label_list[select_top_k]]+=1
-            vote_count[private_label_list[select_top_k]]+=normalized_weight[i]
-        #print('vote count', vote_count)
+            mask_idx[select_top_k] -= normalized_weight[i]
+            # mask_idx[select_top_k]-= 1
+            # print('norm', normalized_weight[i])
+            # vote_count[private_label_list[select_top_k]]+=1
+            vote_count[private_label_list[select_top_k]] += normalized_weight[i]
+        # print('vote count', vote_count)
         for i in range(nb_labels):
-            vote_count[i]+=np.random.normal(scale=noisy_scale)
-        
+            vote_count[i] += np.random.normal(scale=noisy_scale)
+
         # sum over the number of teachers, which make it easy to compute their votings
 
-        #if len(original_topk_index_set)<nb_teachers:
+        # if len(original_topk_index_set)<nb_teachers:
         #    vote_count[0]+=nb_teachers - len(original_topk_index_set)
-        #print('predict label', np.argmax(vote_count))
-        #print('gt label', query_label_list[idx])
+        # print('predict label', np.argmax(vote_count))
+        # print('gt label', query_label_list[idx])
         # apply Report-Noisy-Max for each public query.
         predict_labels.append(np.argmax(vote_count))
-    print('answer {} queries over {}'.format(len(predict_labels),len(teachers_preds)))
-    #acct.compose_poisson_subsampled_mechanisms(gaussian2, prob,coeff = len(stdnt_labels))
+    print('answer {} queries over {}'.format(len(predict_labels), len(teachers_preds)))
+    # acct.compose_poisson_subsampled_mechanisms(gaussian2, prob,coeff = len(stdnt_labels))
     predict_labels = np.array(predict_labels)
     accuracy = metrics.accuracy(predict_labels, query_label_list)
     return accuracy
 
 
-
-if __name__ =='__main__':
+if __name__ == '__main__':
     """
     This function trains a student using predictions made by an ensemble of
     teachers. The student and teacher models are trained using the same
@@ -171,7 +164,5 @@ if __name__ =='__main__':
     parser.add_argument('--num_query', type=int, default=1000)
     parser.add_argument('--var', type=float, default=8.)
     args = parser.parse_args()
-    ac_labels  = IndividualkNN(**vars(args))
-    #return ac_labels
-
-
+    ac_labels = IndividualkNN(**vars(args))
+    # return ac_labels
