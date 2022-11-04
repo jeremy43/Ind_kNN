@@ -11,9 +11,7 @@ import metrics
 import argparse
 from utils import extract_feature
 
-dataset_path = '/Users/xuandongzhao/Downloads/dataset'
-
-
+dataset_path = '/home/xuandong/mnt/dataset/'
 # dataset_path = '/home/yq/dataset'
 
 

@@ -4,6 +4,7 @@ models/__pycache__/
 *.py[cod]
 *$py.class
 
+*.npy
 *.pt
 .idea
 .vscode
