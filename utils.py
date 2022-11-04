@@ -5,6 +5,7 @@ import errno
 import network
 from models import Resnext
 from torchvision.models import resnet50, ResNet50_Weights
+from sentence_transformers import SentenceTransformer
 import pickle
 import shutil
 import json
@@ -34,7 +35,7 @@ SHAPES = {
 #     return scattering, K, (h // 4, w // 4)
 
 
-def extract_feature(train_img, test_img, feature, dataset='cifar10'):
+def extract_feature(train_datapoint, test_datapoint, feature, dataset='cifar10'):
     """
     This help to compute feature for knn from pretrained network
     :param FLAGS:
@@ -52,20 +53,31 @@ def extract_feature(train_img, test_img, feature, dataset='cifar10'):
         model = resnet50(weights=weight)
         model.eval()
 
-        if os.path.exists(dataset + '_resnet50_train.npy'):
-            train_feature = np.load(dataset + '_resnet50_train.npy')
-            test_feature = np.load(dataset + '_resnet50_test.npy')
+        if os.path.exists(f'{dataset}_{feature}.npy'):
+            train_feature = np.load(f'{dataset}_{feature}_train.npy')
+            test_feature = np.load(f'{dataset}_{feature}_test.npy')
             return train_feature, test_feature
-        train_feature = network.predFeature(model, train_img)
+        train_feature = network.predFeature(model, train_datapoint)
         print('feature shape', train_feature.shape)
-        test_feature = network.predFeature(model, test_img)
-        np.save(dataset + '_resnet50_train.npy', train_feature)
-        np.save(dataset + '_resnet50_test.npy', test_feature)
+        test_feature = network.predFeature(model, test_datapoint)
+        np.save(f'{dataset}_{feature}_train.npy', train_feature)
+        np.save(f'{dataset}_{feature}_test.npy', test_feature)
         return train_feature, test_feature
-        # train_img = [np.asarray(data) for data in train_img]
-        # test_img = [np.asarray(data) for data in test_img]
-    elif feature == 'resnext29':
 
+    elif feature == 'all-MiniLM-L6-v2':
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        if os.path.exists(f'{dataset}_{feature}_train.npy'):
+            train_feature = np.load(f'{dataset}_{feature}_train.npy')
+            test_feature = np.load(f'{dataset}_{feature}_test.npy')
+            return train_feature, test_feature
+        train_feature = model.encode(train_datapoint)
+        print('feature shape', train_feature.shape)
+        test_feature = model.encode(test_datapoint)
+        np.save(f'{dataset}_{feature}_train.npy', train_feature)
+        np.save(f'{dataset}_{feature}_test.npy', test_feature)
+        return train_feature, test_feature
+
+    elif feature == 'resnext29':
         if os.path.exists(dataset + '_resnext29_train.npy'):
             train_feature = np.load(dataset + '_resnext29_train.npy')
             test_feature = np.load(dataset + '_resnext29_test.npy')
@@ -82,9 +94,9 @@ def extract_feature(train_img, test_img, feature, dataset='cifar10'):
         model.eval()
         checkpoint = torch.load("/home/yq/ind_kNN/pytorch-classification/checkpoints/cifar10/resnext-8x64d/model_best.pth.tar")
         model.load_state_dict(checkpoint['state_dict'])
-        train_feature = network.predFeature(model, train_img)
+        train_feature = network.predFeature(model, train_datapoint)
         print('feature shape', train_feature.shape)
-        test_feature = network.predFeature(model, test_img)
+        test_feature = network.predFeature(model, test_datapoint)
         np.save(dataset + '_resnext29_train.npy', train_feature)
         np.save(dataset + '_resnext29_test.npy', test_feature)
         return train_feature, test_feature
@@ -131,6 +143,7 @@ def extract_feature(train_img, test_img, feature, dataset='cifar10'):
                 test_scatters = pickle.load(f)
         return train_scatters, test_scatters
     """
+
 
 def hamming_precision(y_true, y_pred, torch=True, cate=True):
     acc_list = []

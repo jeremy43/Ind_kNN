@@ -7,8 +7,10 @@ NUM_QUERY = 100
 VARS = np.exp([3., 4.])
 
 NOISY_SCALES = [1e-20]
-FEATURE = 'resnet50'
-DATASET = 'cifar10'
+# FEATURE = 'resnet50'
+# DATASET = 'cifar10'
+FEATURE = 'all-MiniLM-L6-v2'
+DATASET = 'sst2'
 for var in VARS:
     for ind_budget in IND_BUDGETS:
         for nb_teachers in NB_TEACHERS:
@@ -18,4 +20,4 @@ for var in VARS:
                 ac = IndividualkNN(dataset=DATASET, var=var,
                                    noisy_scale=noisy_scale, feature=FEATURE, num_query=NUM_QUERY, nb_teachers=nb_teachers,
                                    ind_budget=ind_budget, nb_labels=10)
-                print(f"accuracy={ac}")
+                print(f"accuracy={ac} \n")

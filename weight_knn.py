@@ -2,6 +2,7 @@ import os
 from torchvision import datasets, transforms
 from torchvision.models import resnet50, ResNet50_Weights
 from torchvision import datasets as dataset
+from datasets import load_dataset
 from PIL import Image
 import numpy as np
 import utils
@@ -11,7 +12,8 @@ import metrics
 import argparse
 from utils import extract_feature
 
-dataset_path = '/home/xuandong/mnt/dataset/'
+# dataset_path = '/home/xuandong/mnt/dataset/'
+dataset_path = '~/Downloads/dataset/'
 # dataset_path = '/home/yq/dataset'
 
 
@@ -61,6 +63,15 @@ def PrepareData(dataset, feature, num_query):
                                               [transforms.ToTensor(), preprocess]
                                           ))
             # TODO: make mnist work (change to rgb)
+        test_labels = test_dataset.targets
+        train_labels = train_dataset.targets
+    elif feature == 'all-MiniLM-L6-v2':
+        if dataset == 'sst2':
+            ori_dataset = load_dataset('glue', 'sst2')
+            train_dataset = ori_dataset['train']['sentence']
+            test_dataset = ori_dataset['validation']['sentence']
+            train_labels = ori_dataset['train']['label']
+            test_labels = ori_dataset['validation']['label']
     elif feature == 'resnet29':
         normalize = transforms.Normalize(mean=[0.491, 0.482, 0.4465],
                                          std=[0.202, 0.1994, 0.2010])
@@ -73,10 +84,10 @@ def PrepareData(dataset, feature, num_query):
                                         transform=transforms.Compose(
                                             [transforms.ToTensor(), normalize]
                                         ))
+        test_labels = test_dataset.targets
+        train_labels = train_dataset.targets
 
     train_data, test_data = extract_feature(train_dataset, test_dataset, feature, dataset)
-    test_labels = test_dataset.targets
-    train_labels = train_dataset.targets
     return train_data, train_labels, test_data[:num_query], test_labels[:num_query]
 
 
