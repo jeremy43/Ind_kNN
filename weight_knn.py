@@ -12,8 +12,8 @@ import metrics
 import argparse
 from utils import extract_feature
 
-# dataset_path = '/home/xuandong/mnt/dataset/'
-dataset_path = '~/Downloads/dataset/'
+dataset_path = '/home/xuandong/mnt/dataset/'
+# dataset_path = '~/Downloads/dataset/'
 # dataset_path = '/home/yq/dataset'
 
 
@@ -118,9 +118,11 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         original_topk_index_set = keep_idx[np.argsort(dis)[:nb_teachers]]
         # print(f"original_topk_index_set={original_topk_index_set}")
         # For each data in original_tok_index, update their individual accountant.
+        
         kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
-        # copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
         kernel_weight = np.asarray(kernel_weight)
+        
+        # copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
         sum_kernel_weight = sum(kernel_weight)
         # print('sum_kernel_weight', sum_kernel_weight)
         normalized_weight = kernel_weight / sum_kernel_weight * nb_teachers

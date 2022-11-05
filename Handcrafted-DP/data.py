@@ -6,7 +6,9 @@ import pickle
 import numpy as np
 import logging
 
-dataset_path = '/home/yq/dataset'
+# dataset_path = '/home/yq/dataset'
+dataset_path = '/home/xuandong/mnt/dataset/'
+
 
 SHAPES = {
     "cifar10": (32, 32, 3),

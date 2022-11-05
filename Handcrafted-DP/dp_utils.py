@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 import torch
-import opacus.accountants.analysis.rdp as tf_privacy
+import opacus.privacy_analysis as tf_privacy
 
 ORDERS = [1 + x / 10.0 for x in range(1, 100)] + list(range(12, 64))
 

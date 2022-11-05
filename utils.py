@@ -53,7 +53,7 @@ def extract_feature(train_datapoint, test_datapoint, feature, dataset='cifar10')
         model = resnet50(weights=weight)
         model.eval()
 
-        if os.path.exists(f'{dataset}_{feature}.npy'):
+        if os.path.exists(f'{dataset}_{feature}_train.npy'):
             train_feature = np.load(f'{dataset}_{feature}_train.npy')
             test_feature = np.load(f'{dataset}_{feature}_test.npy')
             return train_feature, test_feature

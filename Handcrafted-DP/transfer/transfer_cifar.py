@@ -13,7 +13,7 @@ from data import get_data
 from dp_utils import ORDERS, get_privacy_spent, get_renyi_divergence
 from log import Logger
 
-dataset = 'cifar100'
+dataset = 'cifar10'
 
 
 def main(feature_path=None, batch_size=2048, mini_batch_size=256,
@@ -23,6 +23,7 @@ def main(feature_path=None, batch_size=2048, mini_batch_size=256,
 
     device = get_device()
 
+    feature_path = "../../cifar10_resnet50"
     # get pre-computed features
     x_train = np.load(f"{feature_path}_train.npy")
     x_test = np.load(f"{feature_path}_test.npy")

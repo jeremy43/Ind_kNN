@@ -1,16 +1,16 @@
 from weight_knn import IndividualkNN
 import numpy as np
 
-NB_TEACHERS = [400]
-IND_BUDGETS = [1000]
-NUM_QUERY = 100
-VARS = np.exp([1., 2., 3., 4., 5., 6., 7., 8., 10.])
+NB_TEACHERS = [4000]
+IND_BUDGETS = [100000] # nondp
+NUM_QUERY = 400
+VARS = np.exp([3])
 
-NOISY_SCALES = [1e-20]
-# FEATURE = 'resnet50'
-# DATASET = 'cifar10'
-FEATURE = 'all-roberta-large-v1'
-DATASET = 'sst2'
+NOISY_SCALES = [1e-20] # nondp
+FEATURE = 'resnet50'
+DATASET = 'cifar10'
+# FEATURE = 'all-roberta-large-v1'
+# DATASET = 'sst2'
 for var in VARS:
     for ind_budget in IND_BUDGETS:
         for nb_teachers in NB_TEACHERS:
