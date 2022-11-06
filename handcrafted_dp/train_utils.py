@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 def get_device():
     use_cuda = torch.cuda.is_available()
-    assert use_cuda
+    # assert use_cuda
     device = torch.device("cuda" if use_cuda else "cpu")
     return device
 
@@ -21,8 +21,8 @@ def train(model, train_loader, optimizer, n_acc_steps=1):
     num_batches -= rem
 
     bs = train_loader.batch_size if train_loader.batch_size is not None else train_loader.batch_sampler.batch_size
-    print(f"training on {num_batches} batches of size {bs}")
-    print(f"length of training loader is {len(train_loader)}")
+    # print(f"training on {num_batches} batches of size {bs}")
+    # print(f"length of training loader is {len(train_loader)}")
     for batch_idx, (data, target) in enumerate(train_loader):
 
         if batch_idx > num_batches - 1:

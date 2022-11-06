@@ -12,12 +12,8 @@ import metrics
 import argparse
 from utils import extract_feature
 
-dataset_path = '/home/xuandong/mnt/dataset/'
-# dataset_path = '~/Downloads/dataset/'
-# dataset_path = '/home/yq/dataset'
 
-
-def PrepareData(dataset, feature, num_query):
+def PrepareData(dataset, feature, num_query, dataset_path):
     """
     Takes a dataset name and the size of the teacher ensemble and prepares
     training data for the student model, according to parameters indicated
@@ -88,16 +84,19 @@ def PrepareData(dataset, feature, num_query):
         train_labels = train_dataset.targets
 
     train_data, test_data = extract_feature(train_dataset, test_dataset, feature, dataset)
-    return train_data, train_labels, test_data[:num_query], test_labels[:num_query]
+    train_labels = np.array(train_labels)
+    test_labels = np.array(test_labels)
+    np.random.seed(0)
+    random_index = np.random.randint(0, test_data.shape[0], num_query).astype(int)
+    return train_data, train_labels, test_data[random_index], test_labels[random_index]
 
 
-def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, nb_labels=10, ind_budget=20, noisy_scale=0.1, var=1.):
+def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, nb_labels=10, ind_budget=20, noisy_scale=0.1, var=1., dataset_path=None):
     # mask_idx masked private data that are deleted.  only train_data[mask_idx!=0] will be used for kNN.
-    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query)
+    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path)
     print('shape of feature', private_data_list.shape)
     mask_idx = np.ones(len(private_data_list)) * ind_budget
     # pointer to original idx.
-    private_label_list = np.array(private_label_list)
     original_idx = np.array([x for x in range(len(private_data_list))])
     print('noisy_scale', noisy_scale)
     # keep_idx denote the data that is not deleted.
@@ -118,10 +117,10 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         original_topk_index_set = keep_idx[np.argsort(dis)[:nb_teachers]]
         # print(f"original_topk_index_set={original_topk_index_set}")
         # For each data in original_tok_index, update their individual accountant.
-        
+
         kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
         kernel_weight = np.asarray(kernel_weight)
-        
+
         # copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
         sum_kernel_weight = sum(kernel_weight)
         # print('sum_kernel_weight', sum_kernel_weight)
@@ -152,7 +151,7 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
     # acct.compose_poisson_subsampled_mechanisms(gaussian2, prob,coeff = len(stdnt_labels))
     predict_labels = np.array(predict_labels)
     accuracy = metrics.accuracy(predict_labels, query_label_list)
-    return accuracy
+    return accuracy * 100
 
 
 if __name__ == '__main__':
@@ -174,6 +173,7 @@ if __name__ == '__main__':
     parser.add_argument('--nb_labels', type=int, default=10)
     parser.add_argument('--num_query', type=int, default=1000)
     parser.add_argument('--var', type=float, default=8.)
+    parser.add_argument('--dataset_path', type=str, default='./dataset/')
     args = parser.parse_args()
     ac_labels = IndividualkNN(**vars(args))
     # return ac_labels
