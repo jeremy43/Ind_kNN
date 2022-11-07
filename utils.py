@@ -52,7 +52,7 @@ def extract_feature(train_img, test_img, feature, dataset='cifar10'):
         weight = ResNet50_Weights.IMAGENET1K_V2
         model = resnet50(weights=weight)
         model.eval()
-
+        print('len of data', len(train_img))
         if os.path.exists(dataset+'_resnet50_train.npy'):
             train_feature = np.load(dataset+'_resnet50_train.npy')
             test_feature = np.load(dataset+'_resnet50_test.npy')
