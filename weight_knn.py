@@ -10,6 +10,7 @@ import sys
 import os
 import metrics
 import argparse
+from sentence_transformers import util
 from utils import extract_feature
 
 
@@ -111,14 +112,18 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         filter_private_data = private_data_list[mask_idx > 0]
         # Implement no sampling strategy first
         # select_teacher = np.random.choice(private_data.shape[0], int(prob * num_train))
-        dis = np.linalg.norm(filter_private_data - query_data, axis=1)
+        # dis = np.linalg.norm(filter_private_data - query_data, axis=1)
+        dis = -util.cos_sim(filter_private_data, query_data).reshape(-1)
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
         # print(f"argsort={keep_idx}")
         original_topk_index_set = keep_idx[np.argsort(dis)[:nb_teachers]]
         # print(f"original_topk_index_set={original_topk_index_set}")
         # For each data in original_tok_index, update their individual accountant.
 
-        kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
+        # kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
+        # kernel_weight = [np.exp(util.cos_sim(private_data_list[i], query_data)[0][0] ** 2 / var) for i in original_topk_index_set]
+        temp_d = util.cos_sim(private_data_list[original_topk_index_set], query_data).reshape(-1)
+        kernel_weight = [np.exp(temp_d[i] ** 2 / var) for i in range(len(original_topk_index_set))]
         kernel_weight = np.asarray(kernel_weight)
 
         # copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
