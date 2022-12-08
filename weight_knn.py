@@ -66,9 +66,15 @@ def PrepareData(dataset, feature, num_query, dataset_path):
         if dataset == 'sst2':
             ori_dataset = load_dataset('glue', 'sst2')
             train_dataset = ori_dataset['train']['sentence']
-            test_dataset = ori_dataset['validation']['sentence']
+            test_dataset = ori_dataset['test']['sentence']
             train_labels = ori_dataset['train']['label']
-            test_labels = ori_dataset['validation']['label']
+            test_labels = ori_dataset['test']['label']
+        elif dataset == 'agnews':
+            ori_dataset = load_dataset('ag_news')
+            train_dataset = ori_dataset['train']['text']
+            test_dataset = ori_dataset['test']['text']
+            train_labels = ori_dataset['train']['label']
+            test_labels = ori_dataset['test']['label']
     elif feature == 'resnet29':
         normalize = transforms.Normalize(mean=[0.491, 0.482, 0.4465],
                                          std=[0.202, 0.1994, 0.2010])
@@ -89,8 +95,10 @@ def PrepareData(dataset, feature, num_query, dataset_path):
     test_labels = np.array(test_labels)
     np.random.seed(0)
     random_index = np.random.randint(0, test_data.shape[0], num_query).astype(int)
+    print('test data size', test_data.shape)
     return train_data, train_labels, test_data[random_index], test_labels[random_index]
 
+    # return train_data, train_labels, test_data, test_labels
 
 def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, nb_labels=10, ind_budget=20, noisy_scale=0.1, var=1., dataset_path=None):
     # mask_idx masked private data that are deleted.  only train_data[mask_idx!=0] will be used for kNN.
@@ -112,7 +120,7 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         filter_private_data = private_data_list[mask_idx > 0]
         # Implement no sampling strategy first
         # select_teacher = np.random.choice(private_data.shape[0], int(prob * num_train))
-        if dataset == 'sst2':
+        if dataset in {'sst2', 'agnews'}:
             dis = -util.cos_sim(filter_private_data, query_data).reshape(-1)
         else:
             dis = np.linalg.norm(filter_private_data - query_data, axis=1)
@@ -124,7 +132,7 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
 
         # kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
         # kernel_weight = [np.exp(util.cos_sim(private_data_list[i], query_data)[0][0] ** 2 / var) for i in original_topk_index_set]
-        if dataset == 'sst2':
+        if dataset in {'sst2', 'agnews'}:
             temp_d = util.cos_sim(private_data_list[original_topk_index_set], query_data).reshape(-1)
             kernel_weight = [np.exp(temp_d[i] ** 2 / var) for i in range(len(original_topk_index_set))]
         else:
