@@ -7,11 +7,13 @@ Set the Parameters
 """
 # dataset_path = '/home/yq/dataset'
 # dataset_path = '/home/xuandong/mnt/dataset/'
-DATASET_PATH = '~/Downloads/dataset/'
+DATASET_PATH = '/home/xuandongz/dataset'
 NB_TEACHERS = [4000]
-IND_BUDGETS = [100000]  # nondp
+IND_BUDGETS = [400]  # nondp
 NUM_QUERY = 400
-VARS = np.exp([3])
+# VARS = np.exp([0.1, 1, 3, 10, 100])
+# VARS = [0.1] # sst-2 gaussian 0.08 0.09
+VARS = [0.05]
 # NOISY_SCALES = [1e-20]  # nondp
 NOISY_SCALES = [0]
 # FEATURE = 'resnet50'
@@ -35,8 +37,8 @@ for var in VARS:
 Result of handcrafted dp
 """
 hand_acc = hand_dp(feature=FEATURE, batch_size=2048, mini_batch_size=256,
-                   lr=1, optim="SGD", momentum=0.9, nesterov=False, noise_multiplier=0,
-                   max_grad_norm=0.1, max_epsilon=None, epochs=10, logdir=None,
+                   lr=1, optim="SGD", momentum=0.9, nesterov=False, noise_multiplier=1.16,
+                   max_grad_norm=0.1, max_epsilon=None, epochs=50, logdir=None,
                    dataset=DATASET, dataset_path=DATASET_PATH, num_query=NUM_QUERY)
 
 print('Hand DP acc', hand_acc)

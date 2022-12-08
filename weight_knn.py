@@ -13,6 +13,7 @@ import sys
 import os
 import metrics
 import argparse
+from sentence_transformers import util
 from utils import extract_feature
 from sentence_transformers import util
 dataset_path = '/home/yq/dataset'
@@ -98,17 +99,40 @@ def PrepareData(dataset, feature, num_query, dataset_path):
         if dataset == 'sst2':
             ori_dataset = load_dataset('glue', 'sst2')
             train_dataset = ori_dataset['train']['sentence']
-            test_dataset = ori_dataset['validation']['sentence']
+            test_dataset = ori_dataset['test']['sentence']
             train_labels = ori_dataset['train']['label']
-            test_labels = ori_dataset['validation']['label']
+            #test_labels = ori_dataset['validation']['label']
+            test_labels = ori_dataset['test']['label']
+        elif dataset == 'agnews':
+            ori_dataset = load_dataset('ag_news')
+            train_dataset = ori_dataset['train']['text']
+            test_dataset = ori_dataset['test']['text']
+            train_labels = ori_dataset['train']['label']
+            test_labels = ori_dataset['test']['label']
+    elif feature == 'resnet29':
+        normalize = transforms.Normalize(mean=[0.491, 0.482, 0.4465],
+                                         std=[0.202, 0.1994, 0.2010])
+
+        train_dataset = datasets.CIFAR10(root=dataset_path, train=True, download=True,
+                                         transform=transforms.Compose(
+                                             [transforms.ToTensor(), normalize]
+                                         ))
+        test_dataset = datasets.CIFAR10(root=dataset_path, train=False, download=True,
+                                        transform=transforms.Compose(
+                                            [transforms.ToTensor(), normalize]
+                                        ))
+        test_labels = test_dataset.targets
+        train_labels = train_dataset.targets
 
     train_data, test_data = extract_feature(train_dataset, test_dataset, feature, dataset)
     train_labels = np.array(train_labels)
     test_labels = np.array(test_labels)
     np.random.seed(0)
     random_index = np.random.randint(0, test_data.shape[0], num_query).astype(int)
+    print('test data size', test_data.shape)
     return train_data, train_labels, test_data[random_index], test_labels[random_index]
 
+    # return train_data, train_labels, test_data, test_labels
 
 
 
@@ -143,53 +167,40 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
             dis = -np.array(dis)
             #dis = -np.dot(filter_private_data, query_data)/(np.linalg.norm(filter_private_data, axis=1)*np.linalg.norm(query_data))
         # select_teacher = np.random.choice(private_data.shape[0], int(prob * num_train))
-        dis = np.linalg.norm(filter_private_data - query_data, axis=1)
+        if dataset in {'sst2', 'agnews'}:
+            dis = -util.cos_sim(filter_private_data, query_data).reshape(-1)
+        else:
+            dis = np.linalg.norm(filter_private_data - query_data, axis=1)
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
         # print(f"argsort={keep_idx}")
         original_topk_index_set = keep_idx[np.argsort(dis)[:nb_teachers]]
         # print(f"original_topk_index_set={original_topk_index_set}")
         # For each data in original_tok_index, update their individual accountant.
-        if norm == 'L2':
-            kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i]-query_data)**2/var) for i in original_topk_index_set]
-        else:
+        #copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
+
+        # kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
+        # kernel_weight = [np.exp(util.cos_sim(private_data_list[i], query_data)[0][0] ** 2 / var) for i in original_topk_index_set]
+        if dataset in {'sst2', 'agnews'}:
             temp_d = util.cos_sim(private_data_list[original_topk_index_set], query_data).reshape(-1)
             kernel_weight = [np.exp(temp_d[i] ** 2 / var) for i in range(len(original_topk_index_set))]
-        #copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
-        kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
-        kernel_weight = np.asarray(kernel_weight)
+        else:
+            kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
         if max(kernel_weight)>max_clip:
             max_clip = max(kernel_weight)
         # copy_kernel_weight = [np.exp(-dis[i]**2/var) for i in np.argsort(dis)[:nb_teachers]]
         sum_kernel_weight = sum(kernel_weight)
-        #print('length of kernel weight', len(kernel_weight))
-        #print('sum_kernel_weight', sum_kernel_weight)
         normalized_weight = [x*min(1, clip/x) for x in kernel_weight]
-        # print('sum_kernel_weight', sum_kernel_weight)
-        # normalized_weight = kernel_weight / sum_kernel_weight * nb_teachers
         vote_count = np.zeros(nb_labels)
         # print('normalized_weight', normalized_weight)
         # print('vote_count', vote_count)
         for i in range(len(original_topk_index_set)):
             select_top_k = original_topk_index_set[i]
             mask_idx[select_top_k] -= normalized_weight[i]
-            # mask_idx[select_top_k]-= 1
-            # print('norm', normalized_weight[i])
-            # vote_count[private_label_list[select_top_k]]+=1
-            #print('vote_count', vote_count.shape)
-            #print('normalized_weight', normalized_weight.shape)
-            #print('private_label_list', len(private_label_list))
             vote_count[private_label_list[select_top_k]] += normalized_weight[i]
         # print('vote count', vote_count)
         for i in range(nb_labels):
             vote_count[i] += np.random.normal(scale=noisy_scale)
 
-        # sum over the number of teachers, which make it easy to compute their votings
-
-        # if len(original_topk_index_set)<nb_teachers:
-        #    vote_count[0]+=nb_teachers - len(original_topk_index_set)
-        # print('predict label', np.argmax(vote_count))
-        # print('gt label', query_label_list[idx])
-        # apply Report-Noisy-Max for each public query.
         predict_labels.append(np.argmax(vote_count))
     print('max_clip is {}'.format(max_clip))
     print('answer {} queries over {}'.format(len(predict_labels), len(teachers_preds)))
