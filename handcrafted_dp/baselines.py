@@ -17,7 +17,6 @@ def main(dataset, augment=False, batch_size=2048, mini_batch_size=256, sample_ba
          lr=1, optim="SGD", momentum=0.9, nesterov=False, noise_multiplier=1, max_grad_norm=0.1,
          epochs=100, input_norm=None, num_groups=None, bn_noise_multiplier=None,
          max_epsilon=None, logdir=None):
-
     logger = Logger(logdir)
     device = get_device()
 

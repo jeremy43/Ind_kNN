@@ -5,6 +5,8 @@ import errno
 import network
 from models import Resnext
 from torchvision.models import resnet50, ResNet50_Weights
+from sentence_transformers import SentenceTransformer
+from torch.utils.data import DataLoader
 import pickle
 import shutil
 import json
@@ -12,85 +14,137 @@ import os.path as osp
 import numpy as np
 import torch
 import scipy
+
 sys.path.append('.')
 from sklearn.decomposition import PCA, KernelPCA
 import math
-
 
 SHAPES = {
     "cifar10": (32, 32, 3),
     "cifar10_500K": (32, 32, 3),
     "fmnist": (28, 28, 1),
     "mnist": (28, 28, 1),
-    "svhn":(298, 28, 3)
+    "svhn": (298, 28, 3)
 }
 
-def get_scatter_transform():
-    shape = SHAPES.get(config.dataset)
-    scattering = Scattering2D(J=2, shape=shape[:2])
-    K = 81 * shape[2]
-    (h, w) = shape[:2]
-    return scattering, K, (h//4, w//4)
 
+# def get_scatter_transform():
+#     shape = SHAPES.get(config.dataset)
+#     scattering = Scattering2D(J=2, shape=shape[:2])
+#     K = 81 * shape[2]
+#     (h, w) = shape[:2]
+#     return scattering, K, (h // 4, w // 4)
 
-
-
-def extract_feature(train_img, test_img, feature, dataset='cifar10'):
+def extract_label(dataset, name):
+    if os.path.exists(f'{name}_label.npy'):
+        label_list = np.load(f'{name}_label.npy')
+        print('label_shape', label_list.shape)
+    else:
+        num_file = len(dataset)/50000
+        label_list = []
+        for idx, (imgs, label) in enumerate(dataset):
+            if idx%10000==0:
+                print('idx=', idx)
+            label_list.append(label)
+        label_list = np.array(label_list)
+        np.save(f'{name}_label.npy', label_list)
+        print('label_list shape', label_list.shape)
+        """
+        print('save label into', num_file)
+        for i in range(int(num_file)):
+            label_list = []
+            loader = DataLoader(dataset[i*50000:(i+1)*50000], batch_size=200, shuffle=False, drop_last=False, num_workers=2
+                            )
+            for batch_idx, (imgs, label) in enumerate(loader):
+                if batch_idx%100==0:
+                    print(f'batch_idx={batch_idx}')
+                label_list.append(label)
+            label_list = np.concatenate(label_list, axis=0)
+            print('label shape', label_list.shape)
+            np.save(f'{name}_{i}_label.npy', label_list)
+        label_list = []
+        for i in range(num_file):
+            cur_label_list = np.load('{name}_{i}_label.npy')
+            label_list.append(cur_label_list)
+        label_list = np.concatenate(cur_label_list, axis=0)
+        print('save_label shape', label_list.shape)
+        np.save(f'{name}_label.npy', label_list)
+        """
+    return label_list
+def extract_feature(train_datapoint, test_datapoint, feature, dataset='cifar10'):
     """
     This help to compute feature for knn from pretrained network
     :param FLAGS:
     :param ckpt_path:
     :return:
     """
-    #os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,3'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,3'
     # check if a certain variable has been saved in the model
+    feature_path = 'features/'
     print('dataset in extract feature', dataset)
     if feature == 'resnet50':
         # Update the feature extractor using the student model(filename) in the last iteration.
         # Replace the filename with the saved student model, the following in an example of the checkpoint
-        
+
         weight = ResNet50_Weights.IMAGENET1K_V2
         model = resnet50(weights=weight)
         model.eval()
-        print('len of data', len(train_img))
-        if os.path.exists(dataset+'_resnet50_train.npy'):
-            train_feature = np.load(dataset+'_resnet50_train.npy')
-            test_feature = np.load(dataset+'_resnet50_test.npy')
-            return train_feature, test_feature
-        train_feature = network.predFeature(model, train_img)
+        print('len of data', len(train_datapoint))
+        print(f'features/{dataset}_{feature}_train.npy')
+        if os.path.exists(f'features/{dataset}_{feature}_train.npy'):
+            print('file  exist')
+            train_feature = np.load(f'features/{dataset}_{feature}_train.npy')
+        else:
+            print('file does not exist')
+            train_feature = network.predFeature(model, train_datapoint)
+            np.save(f'features/{dataset}_{feature}_train.npy', train_feature)
+        if os.path.exists(f'features/{dataset}_{feature}_test.npy'):
+            test_feature = np.load(f'features/{dataset}_{feature}_test.npy')
+        else:
+            test_feature = network.predFeature(model, test_datapoint)
+            np.save(f'features/{dataset}_{feature}_test.npy', test_feature)
         print('feature shape', train_feature.shape)
-        test_feature = network.predFeature(model, test_img)
-        np.save(dataset+'_resnet50_train.npy', train_feature)
-        np.save(dataset+'_resnet50_test.npy', test_feature)
+        print(' test feature shape', test_feature.shape)
         return train_feature, test_feature
-        # train_img = [np.asarray(data) for data in train_img]
-        # test_img = [np.asarray(data) for data in test_img]
-    elif feature == 'resnext29':
 
-        if os.path.exists(dataset+'_resnext29_train.npy'):
-            train_feature = np.load(dataset+'_resnext29_train.npy')
-            test_feature = np.load(dataset+'_resnext29_test.npy')
-            return train_feature, test_feature 
+    elif feature == 'all-roberta-large-v1':
+        if os.path.exists(f'features/{dataset}_{feature}_train.npy'):
+            train_feature = np.load(f'features/{dataset}_{feature}_train.npy')
+            test_feature = np.load(f'features/{dataset}_{feature}_test.npy')
+            return train_feature, test_feature
+        model = SentenceTransformer('all-roberta-large-v1')
+        train_feature = model.encode(train_datapoint)
+        print('feature shape', train_feature.shape)
+        test_feature = model.encode(test_datapoint)
+        np.save(f'features/{dataset}_{feature}_train.npy', train_feature)
+        np.save(f'features/{dataset}_{feature}_test.npy', test_feature)
+        return train_feature, test_feature
+
+    elif feature == 'resnext29':
+        if os.path.exists(dataset + '_resnext29_train.npy'):
+            train_feature = np.load(dataset + '_resnext29_train.npy')
+            test_feature = np.load(dataset + '_resnext29_test.npy')
+            return train_feature, test_feature
 
         model = Resnext.resnext(
-                cardinality=8,
-                num_classes=100,
-                depth=29,
-                widen_factor=4,
-                dropRate=0,)
+            cardinality=8,
+            num_classes=100,
+            depth=29,
+            widen_factor=4,
+            dropRate=0, )
 
         model = torch.nn.DataParallel(model).cuda()
         model.eval()
         checkpoint = torch.load("/home/yq/ind_kNN/pytorch-classification/checkpoints/cifar10/resnext-8x64d/model_best.pth.tar")
         model.load_state_dict(checkpoint['state_dict'])
-        train_feature = network.predFeature(model, train_img)
+        train_feature = network.predFeature(model, train_datapoint)
         print('feature shape', train_feature.shape)
-        test_feature = network.predFeature(model, test_img)
-        np.save(dataset+'_resnext29_train.npy', train_feature)
-        np.save(dataset+'_resnext29_test.npy', test_feature)
+        test_feature = network.predFeature(model, test_datapoint)
+        np.save(dataset + '_resnext29_train.npy', train_feature)
+        np.save(dataset + '_resnext29_test.npy', test_feature)
         return train_feature, test_feature
-    if feature=='scatter':
-        """
+    """
+    if feature == 'scatter':
         scattering, K, (h, w) = get_scatter_transform()
         train_scatters = []
         each_length = int((9 + len(train_img)) / 10)
@@ -118,7 +172,7 @@ def extract_feature(train_img, test_img, feature, dataset='cifar10'):
                     else:
                         train_scatters = pickle.load(f)
         return train_scatters, train_scatters
-        """
+
         if os.path.exists(test_scatter_path) == False:
             test_scatters = []
             for (test_data, target) in test_img:
@@ -131,30 +185,35 @@ def extract_feature(train_img, test_img, feature, dataset='cifar10'):
             with open(test_scatter_path, 'rb') as f:
                 test_scatters = pickle.load(f)
         return train_scatters, test_scatters
+    """
 
-def hamming_precision(y_true, y_pred,torch = True, cate = True):
+
+def hamming_precision(y_true, y_pred, torch=True, cate=True):
     acc_list = []
     if torch:
         from sklearn.metrics import accuracy_score
         y_true = y_true.numpy()
         y_pred = y_pred.numpy()
     for i in range(len(y_true)):
-        
-        set_true = set( np.where(y_true[i]==1)[0] )
-        set_pred = set( np.where(y_pred[i]==1)[0] )
+
+        set_true = set(np.where(y_true[i] == 1)[0])
+        set_pred = set(np.where(y_pred[i] == 1)[0])
         tmp_a = None
         if len(set_true) == 0 and len(set_pred) == 0:
             tmp_a = 1
         else:
-            tmp_a = len(set_true.intersection(set_pred))/\
-            float( len(set_true.union(set_pred)) )
+            tmp_a = len(set_true.intersection(set_pred)) / \
+                    float(len(set_true.union(set_pred)))
         acc_list.append(tmp_a)
     return np.mean(acc_list)
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value.
        
        Code imported from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L247-L262
     """
+
     def __init__(self):
         self.reset()
 
@@ -171,18 +230,19 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-
 def save_checkpoint(state, is_best, fpath='checkpoint.pth.tar'):
     mkdir_if_missing(osp.dirname(fpath))
     torch.save(state, fpath)
     if is_best:
         shutil.copy(fpath, osp.join(osp.dirname(fpath), 'best_model.pth.tar'))
 
+
 class Logger(object):
     """
     Write console output to external text file.
     Code imported from https://github.com/Cysu/open-reid/blob/master/reid/utils/logging.py.
     """
+
     def __init__(self, fpath=None):
         self.console = sys.stdout
         self.file = None
@@ -215,15 +275,18 @@ class Logger(object):
         if self.file is not None:
             self.file.close()
 
+
 def read_json(fpath):
     with open(fpath, 'r') as f:
         obj = json.load(f)
     return obj
 
+
 def write_json(obj, fpath):
     mkdir_if_missing(osp.dirname(fpath))
     with open(fpath, 'w') as f:
         json.dump(obj, f, indent=4, separators=(',', ': '))
+
 
 def set_bn_to_eval(m):
     # 1. no update for running mean and var
@@ -231,4 +294,3 @@ def set_bn_to_eval(m):
     classname = m.__class__.__name__
     if classname.find('BatchNorm') != -1:
         m.eval()
-

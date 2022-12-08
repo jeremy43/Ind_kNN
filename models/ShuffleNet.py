@@ -7,6 +7,7 @@ import torchvision
 
 __all__ = ['ShuffleNet']
 
+
 class ChannelShuffle(nn.Module):
     def __init__(self, num_groups):
         super(ChannelShuffle, self).__init__()
@@ -22,6 +23,7 @@ class ChannelShuffle(nn.Module):
         # flatten
         x = x.view(b, c, h, w)
         return x
+
 
 class Bottleneck(nn.Module):
     def __init__(self, in_channels, out_channels, stride, num_groups):
@@ -51,6 +53,7 @@ class Bottleneck(nn.Module):
             out = F.relu(x + out)
         return out
 
+
 # configuration of (num_groups: #out_channels) based on Table 1 in the paper
 cfg = {
     1: [144, 288, 576],
@@ -60,6 +63,7 @@ cfg = {
     8: [384, 768, 1536],
 }
 
+
 class ShuffleNet(nn.Module):
     """ShuffleNet
 
@@ -67,6 +71,7 @@ class ShuffleNet(nn.Module):
     Zhang et al. ShuffleNet: An Extremely Efficient Convolutional Neural
     Network for Mobile Devices. CVPR 2018.
     """
+
     def __init__(self, num_classes, loss={'xent'}, num_groups=3, **kwargs):
         super(ShuffleNet, self).__init__()
         self.loss = loss

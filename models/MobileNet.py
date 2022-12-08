@@ -7,6 +7,7 @@ import torchvision
 
 __all__ = ['MobileNetV2']
 
+
 class ConvBlock(nn.Module):
     """Basic convolutional block:
     convolution (bias discarded) + batch normalization + relu6.
@@ -20,6 +21,7 @@ class ConvBlock(nn.Module):
         g (int): number of blocked connections from input channels
                  to output channels (default: 1).
     """
+
     def __init__(self, in_c, out_c, k, s=1, p=0, g=1):
         super(ConvBlock, self).__init__()
         self.conv = nn.Conv2d(in_c, out_c, k, stride=s, padding=p, bias=False, groups=g)
@@ -27,6 +29,7 @@ class ConvBlock(nn.Module):
 
     def forward(self, x):
         return F.relu6(self.bn(self.conv(x)))
+
 
 class Bottleneck(nn.Module):
     def __init__(self, in_channels, out_channels, expansion_factor, stride):
@@ -49,12 +52,14 @@ class Bottleneck(nn.Module):
         else:
             return m
 
+
 class MobileNetV2(nn.Module):
     """MobileNetV2
 
     Reference:
     Sandler et al. MobileNetV2: Inverted Residuals and Linear Bottlenecks. CVPR 2018.
     """
+
     def __init__(self, num_classes, loss={'xent'}, **kwargs):
         super(MobileNetV2, self).__init__()
         self.loss = loss

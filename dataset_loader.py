@@ -7,6 +7,7 @@ import os.path as osp
 import torch
 from torch.utils.data import Dataset
 
+
 def read_image(img_path):
     """Keep reading image until succeed.
     This can avoid IOError incurred by heavy IO process."""
@@ -22,9 +23,11 @@ def read_image(img_path):
             pass
     return img
 
+
 class ImageDataset(Dataset):
     """Image Person ReID Dataset"""
-    def __init__(self, data,id =None,label=None, transform=None):
+
+    def __init__(self, data, id=None, label=None, transform=None):
         self.data = data
         self.label = label
         self.transform = transform
@@ -35,13 +38,14 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         cur_img = self.data[index]
-            
+
         if self.transform is not None:
             img = self.transform(cur_img)
-        if self.label is not None :
+        if self.label is not None:
             cur_label = self.label[index]
             return img, cur_label
         elif id is None:
+            cur_label = None
             return img, cur_label
         else:
             return img
@@ -81,13 +85,13 @@ class VideoDataset(Dataset):
             """Evenly sample seq_len items from num items."""
             if num >= self.seq_len:
                 num -= num % self.seq_len
-                indices = np.arange(0, num, num/self.seq_len)
+                indices = np.arange(0, num, num / self.seq_len)
             else:
                 # if num is smaller than seq_len, simply replicate the last image
                 # until the seq_len requirement is satisfied
                 indices = np.arange(0, num)
                 num_pads = self.seq_len - num
-                indices = np.concatenate([indices, np.ones(num_pads).astype(np.int32)*(num-1)])
+                indices = np.concatenate([indices, np.ones(num_pads).astype(np.int32) * (num - 1)])
             assert len(indices) == self.seq_len
         elif self.sample == 'all':
             """
