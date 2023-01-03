@@ -170,7 +170,7 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
         # to speed up the experiment, only keep the top 3k neighbors' prediction.
-        keep_idx =keep_idx[np.argsort(dis)[:3000]] 
+        keep_idx =keep_idx[np.argsort(dis)[:500]] 
 
         # print(f"argsort={keep_idx}")
         #print(f'length of keep_idx is {len(keep_idx)}')
@@ -191,7 +191,9 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         #print(f' min of weight is {min(kernel_weight)} and max weight is {max(kernel_weight)}')
         #normalized_weight = [x/sum_weight for x in kernel_weight]
         normalized_weight = np.array(kernel_weight)
-        original_top_index_set = keep_idx[np.where(normalized_weight>min_weight)]
+        keep_idx_in_normalized = np.where(normalized_weight>min_weight)[0]
+        #print(f'keep idx ={len(keep_idx_in_normalized)}')
+        original_top_index_set = keep_idx[keep_idx_in_normalized]
         #print(f'length of neighbors is {len(original_top_index_set)}')
         sum_neighbors+=len(original_top_index_set)
         #original_top_index_set =  keep_idx[np.where(kernel_weight>min_weight)]
@@ -201,7 +203,9 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
             continue
         for i in range(len(original_top_index_set)):
             select_idx = original_top_index_set[i]
-            vote_count[private_label_list[select_idx]] +=min(mask_idx[select_idx], normalized_weight[i])
+            idx_normalized = keep_idx_in_normalized[i]
+            vote_count[private_label_list[select_idx]] +=min(mask_idx[select_idx], normalized_weight[idx_normalized])
+            mask_idx[select_idx]-=  normalized_weight[idx_normalized]
         for i in range(nb_labels):
             vote_count[i] += np.random.normal(scale=noisy_scale)
 
