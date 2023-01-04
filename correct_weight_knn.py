@@ -170,7 +170,7 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
         # to speed up the experiment, only keep the top 3k neighbors' prediction.
-        keep_idx =keep_idx[np.argsort(dis)[:500]] 
+        keep_idx =keep_idx[np.argsort(dis)[:5000]] 
 
         # print(f"argsort={keep_idx}")
         #print(f'length of keep_idx is {len(keep_idx)}')
