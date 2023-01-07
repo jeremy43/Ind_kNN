@@ -1,23 +1,20 @@
-import os
 from torchvision import datasets, transforms
 from torchvision.models import resnet50, ResNet50_Weights
 from torchvision import datasets as dataset
 from datasets import load_dataset
-from PIL import Image
 import numpy as np
 import torch
 import network
 from torch.utils.data import DataLoader
 import utils
 import sys
-import os
 import metrics
 import argparse
-from sentence_transformers import util
 from utils import extract_feature
 from sentence_transformers import util
-dataset_path = '/home/yq/dataset'
-def PrepareData(dataset, feature, num_query, dataset_path):
+
+
+def PrepareData(dataset, feature, num_query, dataset_path, seed):
     """
     Takes a dataset name and the size of the teacher ensemble and prepares
     training data for the student model, according to parameters indicated
@@ -37,62 +34,62 @@ def PrepareData(dataset, feature, num_query, dataset_path):
         normalize = transforms.Normalize(mean=[0.485], std=[0.22])
 
         train_dataset = datasets.MNIST(root=dataset_path, train=False, download=True,
-                                    transform=transforms.Compose(
-                                        [transforms.ToTensor(), normalize]
-                                    ))
+                                       transform=transforms.Compose(
+                                           [transforms.ToTensor(), normalize]
+                                       ))
         test_dataset = datasets.MNIST(root=dataset_path, train=False, download=True,
-                                     transform=transforms.Compose(
-                                        [transforms.ToTensor(), normalize]
-                                    ))
+                                      transform=transforms.Compose(
+                                          [transforms.ToTensor(), normalize]
+                                      ))
         scattering, K, (h, w) = utils.get_scatter_transform()
         train_data, test_data = extract_feature(train_dataset, test_dataset)
         test_labels = test_dataset.targets
         train_labels = train_dataset.targets
         return train_data, train_labels, test_data, test_labels
-    
+
     if feature == 'resnet50':
         weight = ResNet50_Weights.IMAGENET1K_V2
         preprocess = weight.transforms()
         if dataset == 'cifar10':
-            train_dataset = datasets.CIFAR10(root=dataset_path, train=True, download=True,  transform=transforms.Compose(
-                                        [transforms.ToTensor(), preprocess]
-                                    ))
+            train_dataset = datasets.CIFAR10(root=dataset_path, train=True, download=True, transform=transforms.Compose(
+                [transforms.ToTensor(), preprocess]
+            ))
             test_dataset = datasets.CIFAR10(root=dataset_path, train=False, download=True, transform=transforms.Compose(
-                                           [transforms.ToTensor(), preprocess]
-                                       ))
+                [transforms.ToTensor(), preprocess]
+            ))
             test_labels = test_dataset.targets
             train_labels = train_dataset.targets
         elif dataset == 'INaturalist':
-            train_dataset = datasets.INaturalist(root=dataset_path, version='2021_train_mini',transform=transforms.Compose([transforms.ToTensor(), preprocess]
-                                    ))
+            train_dataset = datasets.INaturalist(root=dataset_path, version='2021_train_mini', transform=transforms.Compose([transforms.ToTensor(), preprocess]
+                                                                                                                            ))
             print('train_dataset', len(train_dataset))
-            #test_dataset = train_dataset
-            test_dataset = datasets.INaturalist(root=dataset_path+'/val', version='2021_valid',  transform=transforms.Compose(
-                                           [transforms.ToTensor(), preprocess]
-                                       ))
+            # test_dataset = train_dataset
+            test_dataset = datasets.INaturalist(root=dataset_path + '/val', version='2021_valid', transform=transforms.Compose(
+                [transforms.ToTensor(), preprocess]
+            ))
             train_labels = utils.extract_label(train_dataset, 'train_mini')
             test_labels = utils.extract_label(test_dataset, 'val')
         elif dataset == 'cifar100':
-            train_dataset = datasets.CIFAR100(root=dataset_path, train=True, download=True,transform=transforms.Compose(
-                                        [transforms.ToTensor(), preprocess]
-                                    ))
+            train_dataset = datasets.CIFAR100(root=dataset_path, train=True, download=True, transform=transforms.Compose(
+                [transforms.ToTensor(), preprocess]
+            ))
             test_dataset = datasets.CIFAR100(root=dataset_path, train=False, download=True,
-                                       transform=transforms.Compose(
-                                           [transforms.ToTensor(), preprocess]
-                                       ))
+                                             transform=transforms.Compose(
+                                                 [transforms.ToTensor(), preprocess]
+                                             ))
             test_labels = test_dataset.targets
             train_labels = train_dataset.targets
     elif feature == 'resnext29':
         normalize = transforms.Normalize(mean=[0.491, 0.482, 0.4465],
                                          std=[0.202, 0.1994, 0.2010])
         train_dataset = datasets.CIFAR10(root=dataset_path, train=True, download=True,
-                                             transform=transforms.Compose(
-                                                 [transforms.ToTensor(), normalize]
-                                             ))
+                                         transform=transforms.Compose(
+                                             [transforms.ToTensor(), normalize]
+                                         ))
         test_dataset = datasets.CIFAR10(root=dataset_path, train=False, download=True,
-                                            transform=transforms.Compose(
-                                                [transforms.ToTensor(), normalize]
-                                            ))
+                                        transform=transforms.Compose(
+                                            [transforms.ToTensor(), normalize]
+                                        ))
         test_labels = test_dataset.targets
         train_labels = train_dataset.targets
     elif feature == 'all-roberta-large-v1':
@@ -101,7 +98,7 @@ def PrepareData(dataset, feature, num_query, dataset_path):
             train_dataset = ori_dataset['train']['sentence']
             test_dataset = ori_dataset['test']['sentence']
             train_labels = ori_dataset['train']['label']
-            #test_labels = ori_dataset['validation']['label']
+            # test_labels = ori_dataset['validation']['label']
             test_labels = ori_dataset['test']['label']
         elif dataset == 'agnews':
             ori_dataset = load_dataset('ag_news')
@@ -133,7 +130,7 @@ def PrepareData(dataset, feature, num_query, dataset_path):
     train_data, test_data = extract_feature(train_dataset, test_dataset, feature, dataset)
     train_labels = np.array(train_labels)
     test_labels = np.array(test_labels)
-    np.random.seed(0)
+    np.random.seed(seed)
     random_index = np.random.randint(0, test_data.shape[0], num_query).astype(int)
     print('test data size', test_data.shape)
     return train_data, train_labels, test_data[random_index], test_labels[random_index]
@@ -141,17 +138,16 @@ def PrepareData(dataset, feature, num_query, dataset_path):
     # return train_data, train_labels, test_data, test_labels
 
 
-
-def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, nb_labels=10, ind_budget=20,min_weight=0.1,  noisy_scale=0.1, clip=20, var=1., norm='L2',dataset_path=None):
+def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, nb_labels=10, ind_budget=20, min_weight=0.1,
+                  noisy_scale=0.1, var=1., norm='L2', dataset_path=None, seed=0):
     # mask_idx masked private data that are deleted.  only train_data[mask_idx!=0] will be used for kNN.
-    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path)
+    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path, seed)
     print(f'length of query list={len(query_data_list)}')
     print('shape of feature', private_data_list.shape)
     mask_idx = np.ones(len(private_data_list)) * ind_budget
     # pointer to original idx.
     original_idx = np.array([x for x in range(len(private_data_list))])
     # keep_idx denote the data that is not deleted.
-    #  private_data = torch.stack(private_data)
     max_clip = 0
     sum_neighbors = 0
     teachers_preds = np.zeros([num_query, nb_teachers])
@@ -160,58 +156,61 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         query_data = query_data_list[idx]
         if idx % 100 == 0:
             print('current query idx', idx)
-        #print(f'idx is {idx}')
+        # print(f'idx is {idx}')
         filter_private_data = private_data_list[mask_idx > 0]
-        
-        if dataset in {'sst2'}:
+
+        if dataset in {'sst2', 'agnews'}:
             dis = -util.cos_sim(filter_private_data, query_data).reshape(-1)
         else:
             dis = np.linalg.norm(filter_private_data - query_data, axis=1)
-        
+
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
-        # to speed up the experiment, only keep the top 3k neighbors' prediction.
-        keep_idx =keep_idx[np.argsort(dis)[:5000]] 
+        # to speed up the experiment, only keep the top 5k neighbors' prediction.
+        keep_idx = keep_idx[np.argsort(dis)[:5000]]
 
         # print(f"argsort={keep_idx}")
-        #print(f'length of keep_idx is {len(keep_idx)}')
-        if len(keep_idx)==0 or len(keep_idx)==1:
+        # print(f'length of keep_idx is {len(keep_idx)}')
+        if len(keep_idx) == 0 or len(keep_idx) == 1:
             print('continue with next queries')
             predict_labels.append(0)
             continue
-        if dataset in {'sst2'}:
-            temp_d = util.cos_sim(private_data_list[keep_idx], query_data).reshape(-1)
-            kernel_weight = [np.exp(-temp_d[i] ** 2 / var) for i in range(len(keep_idx)) ]
+        if dataset in {'sst2', 'agnews'}:
+            kernel_weight = util.cos_sim(private_data_list[keep_idx], query_data).reshape(-1)
         else:
             kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in keep_idx]
         kernel_weight = np.array(kernel_weight)
-        if len(kernel_weight) and max(kernel_weight)>max_clip:
+        if len(kernel_weight) and max(kernel_weight) > max_clip:
             max_clip = max(kernel_weight)
-        #normalized_weight = [x*min(1, clip/x) for x in kernel_weight]
-        sum_weight = sum(kernel_weight)
-        #print(f' min of weight is {min(kernel_weight)} and max weight is {max(kernel_weight)}')
-        #normalized_weight = [x/sum_weight for x in kernel_weight]
+        # normalized_weight = [x * min(1, clip / x) for x in kernel_weight]
+        # sum_weight = sum(kernel_weight)
+        # print(f' min of weight is {min(kernel_weight)} and max weight is {max(kernel_weight)}')
+        # normalized_weight = [x/sum_weight for x in kernel_weight]
         normalized_weight = np.array(kernel_weight)
-        keep_idx_in_normalized = np.where(normalized_weight>min_weight)[0]
-        #print(f'keep idx ={len(keep_idx_in_normalized)}')
+        keep_idx_in_normalized = np.where(normalized_weight > min_weight)[0]
+        # cur_weight = min_weight
+        # while len(keep_idx_in_normalized) < 100 and cur_weight > 0:
+        #     cur_weight -= 0.1
+        #     keep_idx_in_normalized = np.where(normalized_weight > cur_weight)[0]
+        # print(f'keep idx ={len(keep_idx_in_normalized)}')
         original_top_index_set = keep_idx[keep_idx_in_normalized]
-        #print(f'length of neighbors is {len(original_top_index_set)}')
-        sum_neighbors+=len(original_top_index_set)
-        #original_top_index_set =  keep_idx[np.where(kernel_weight>min_weight)]
+        # print(f'length of neighbors is {len(original_top_index_set)}')
+        sum_neighbors += len(original_top_index_set)
+        # original_top_index_set =  keep_idx[np.where(kernel_weight>min_weight)]
         vote_count = np.zeros(nb_labels)
-        if len(original_top_index_set)==0:
+        if len(original_top_index_set) == 0:
             predict_labels.append(0)
             continue
         for i in range(len(original_top_index_set)):
             select_idx = original_top_index_set[i]
             idx_normalized = keep_idx_in_normalized[i]
-            vote_count[private_label_list[select_idx]] +=min(mask_idx[select_idx], normalized_weight[idx_normalized])
-            mask_idx[select_idx]-=  normalized_weight[idx_normalized]
+            vote_count[private_label_list[select_idx]] += min(mask_idx[select_idx], normalized_weight[idx_normalized])
+            mask_idx[select_idx] -= normalized_weight[idx_normalized]
         for i in range(nb_labels):
             vote_count[i] += np.random.normal(scale=noisy_scale)
 
         predict_labels.append(np.argmax(vote_count))
     print('max_clip is {}'.format(max_clip))
-    print('averaged neighbors is {}'.format(sum_neighbors/len(teachers_preds)))
+    print('averaged neighbors is {}'.format(sum_neighbors / len(teachers_preds)))
     print('answer {} queries over {}'.format(len(predict_labels), len(teachers_preds)))
     # acct.compose_poisson_subsampled_mechanisms(gaussian2, prob,coeff = len(stdnt_labels))
     predict_labels = np.array(predict_labels)

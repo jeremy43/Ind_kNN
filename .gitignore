@@ -4,10 +4,12 @@ models/__pycache__/
 *.py[cod]
 *$py.class
 
+features/*
 *.npy
 *.pt
 .idea
 .vscode
+*.pkl
 
 # Ignore Mac system files
 .DS_store
