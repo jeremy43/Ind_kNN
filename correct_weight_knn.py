@@ -17,7 +17,7 @@ from sentence_transformers import util
 from utils import extract_feature
 from sentence_transformers import util
 dataset_path = '/home/yq/dataset'
-def PrepareData(dataset, feature, num_query, dataset_path):
+def PrepareData(dataset, feature, num_query, dataset_path, seed, norm=None):
     """
     Takes a dataset name and the size of the teacher ensemble and prepares
     training data for the student model, according to parameters indicated
@@ -130,10 +130,10 @@ def PrepareData(dataset, feature, num_query, dataset_path):
         test_labels = test_dataset.targets
         train_labels = train_dataset.targets
 
-    train_data, test_data = extract_feature(train_dataset, test_dataset, feature, dataset)
+    train_data, test_data = extract_feature(train_dataset, test_dataset, feature, dataset, norm=norm)
     train_labels = np.array(train_labels)
     test_labels = np.array(test_labels)
-    np.random.seed(0)
+    np.random.seed(seed)
     random_index = np.random.randint(0, test_data.shape[0], num_query).astype(int)
     print('test data size', test_data.shape)
     return train_data, train_labels, test_data[random_index], test_labels[random_index]
@@ -142,9 +142,9 @@ def PrepareData(dataset, feature, num_query, dataset_path):
 
 
 
-def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, nb_labels=10, ind_budget=20,min_weight=0.1,  noisy_scale=0.1, clip=20, var=1., norm='L2',dataset_path=None):
+def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=150, num_query=1000,  nb_labels=10, ind_budget=20,min_weight=0.1,  noisy_scale=0.1, clip=20, seed=0, var=1., norm='centering+L2',dataset_path=None):
     # mask_idx masked private data that are deleted.  only train_data[mask_idx!=0] will be used for kNN.
-    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path)
+    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path,seed, norm=norm)
     print(f'length of query list={len(query_data_list)}')
     print('shape of feature', private_data_list.shape)
     mask_idx = np.ones(len(private_data_list)) * ind_budget
@@ -156,6 +156,7 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
     sum_neighbors = 0
     teachers_preds = np.zeros([num_query, nb_teachers])
     predict_labels = []
+    track_k_weight = []
     for idx in range(num_query):
         query_data = query_data_list[idx]
         if idx % 100 == 0:
@@ -163,31 +164,36 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
         #print(f'idx is {idx}')
         filter_private_data = private_data_list[mask_idx > 0]
         
-        if dataset in {'sst2'}:
-            dis = -util.cos_sim(filter_private_data, query_data).reshape(-1)
-        else:
+        if kernel_method=='cosine':
+            dis =  -np.dot(filter_private_data, query_data)
+            #dis = -util.cos_sim(filter_private_data, query_data).reshape(-1)
+        elif kernel_method=='rbf':
             dis = np.linalg.norm(filter_private_data - query_data, axis=1)
         
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
         # to speed up the experiment, only keep the top 3k neighbors' prediction.
-        keep_idx =keep_idx[np.argsort(dis)[:5000]] 
-
+        keep_idx =keep_idx[np.argsort(dis)[:3000]] 
         # print(f"argsort={keep_idx}")
         #print(f'length of keep_idx is {len(keep_idx)}')
         if len(keep_idx)==0 or len(keep_idx)==1:
-            print('continue with next queries')
+            print('private dataset is now empty')
             predict_labels.append(0)
             continue
-        if dataset in {'sst2'}:
-            temp_d = util.cos_sim(private_data_list[keep_idx], query_data).reshape(-1)
-            kernel_weight = [np.exp(-temp_d[i] ** 2 / var) for i in range(len(keep_idx)) ]
-        else:
+        if kernel_method=='cosine':
+            kernel_weight = np.dot(private_data_list[keep_idx], query_data)
+            #temp_d = util.cos_sim(private_data_list[keep_idx], query_data).reshape(-1)
+            #kernel_weight = [np.exp(-temp_d[i] ** 2 / var) for i in range(len(keep_idx)) ]
+        elif kernel_method=='rbf':
             kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in keep_idx]
+    
+        elif kernel_method == 'student':
+             kernel_weight = [(1+np.linalg.norm(private_data_list[i] - query_data) ** 2 / var)**(-(var+1)/2) for i in keep_idx]
         kernel_weight = np.array(kernel_weight)
         if len(kernel_weight) and max(kernel_weight)>max_clip:
             max_clip = max(kernel_weight)
         #normalized_weight = [x*min(1, clip/x) for x in kernel_weight]
         sum_weight = sum(kernel_weight)
+        track_k_weight.append(kernel_weight[10])
         #print(f' min of weight is {min(kernel_weight)} and max weight is {max(kernel_weight)}')
         #normalized_weight = [x/sum_weight for x in kernel_weight]
         normalized_weight = np.array(kernel_weight)
@@ -215,6 +221,8 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
     print('answer {} queries over {}'.format(len(predict_labels), len(teachers_preds)))
     # acct.compose_poisson_subsampled_mechanisms(gaussian2, prob,coeff = len(stdnt_labels))
     predict_labels = np.array(predict_labels)
+    track_k_weight = np.array(track_k_weight)
+    print(f'average top k neighbor weight is {np.mean(track_k_weight)}')
     accuracy = metrics.accuracy(predict_labels, query_label_list)
     return accuracy * 100
 
