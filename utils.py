@@ -12,6 +12,7 @@ import shutil
 import json
 import os.path as osp
 import numpy as np
+from numpy import linalg as LA
 import torch
 import scipy
 
@@ -71,7 +72,7 @@ def extract_label(dataset, name):
         np.save(f'{name}_label.npy', label_list)
         """
     return label_list
-def extract_feature(train_datapoint, test_datapoint, feature, dataset='cifar10'):
+def extract_feature(train_datapoint, test_datapoint, feature,   dataset='cifar10', norm=None):
     """
     This help to compute feature for knn from pretrained network
     :param FLAGS:
@@ -90,35 +91,94 @@ def extract_feature(train_datapoint, test_datapoint, feature, dataset='cifar10')
         model = resnet50(weights=weight)
         model.eval()
         print('len of data', len(train_datapoint))
-        print(f'features/{dataset}_{feature}_train.npy')
-        if os.path.exists(f'features/{dataset}_{feature}_train.npy'):
+        if dataset =='dbpedia':
+            train_path =f'/home/xuandongz/indkNN/dbpedia_all-roberta-large-v1_train.npy'
+            test_path = f'/home/xuandongz/indkNN/dbpedia_all-roberta-large-v1_test.npy'
+        else:
+            train_path = f'features/{dataset}_{feature}_train.npy'
+            test_path = f'features/{dataset}_{feature}_test.npy'
+        if os.path.exists(train_path):
             print('file  exist')
-            train_feature = np.load(f'features/{dataset}_{feature}_train.npy')
+            train_feature = np.load(train_path)
         else:
             print('file does not exist')
             train_feature = network.predFeature(model, train_datapoint)
-            np.save(f'features/{dataset}_{feature}_train.npy', train_feature)
-        if os.path.exists(f'features/{dataset}_{feature}_test.npy'):
-            test_feature = np.load(f'features/{dataset}_{feature}_test.npy')
+            np.save(train_path, train_feature)
+        if os.path.exists(test_path):
+            test_feature = np.load(test_path)
         else:
             test_feature = network.predFeature(model, test_datapoint)
-            np.save(f'features/{dataset}_{feature}_test.npy', test_feature)
+            np.save(test_path, test_feature)
         print('feature shape', train_feature.shape)
         print(' test feature shape', test_feature.shape)
-        return train_feature, test_feature
+        if norm == 'centering':
+            print('use centering for preprocessing')
+            train_mean = np.mean(train_feature, axis=0)
+            train_var = np.var(train_feature, axis=0)
+            test_mean = np.mean(test_feature, axis=0)
+            test_var = np.var(test_feature, axis=0)
+            train_feature_center = (train_feature -train_mean) / np.sqrt(train_var + 1e-5)
+            test_feature_center  = (test_feature - test_mean) / np.sqrt(test_var + 1e-5)
+            return train_feature_center, test_feature_center
+        elif norm == 'centering+L2':
+            print('use centering and L2')
+            train_mean = np.mean(train_feature, axis=0)
+            train_var = np.var(train_feature, axis=0)
+            test_mean = np.mean(test_feature, axis=0)
+            test_var = np.var(test_feature, axis=0)
+            train_feature_center = train_feature -train_mean
+            test_feature_center = test_feature - test_mean
+            #train_feature_center = (train_feature -train_mean) / np.sqrt(train_var + 1e-5)
+            #test_feature_center  = (test_feature - test_mean) / np.sqrt(test_var + 1e-5)
+            train_l2_norm = LA.norm(train_feature_center, axis=1)
+            test_l2_norm = LA.norm(test_feature_center, axis=1)
+            train_feature_norm = train_feature_center / train_l2_norm[:, np.newaxis]
+            test_feature_norm = test_feature_center / test_l2_norm[:, np.newaxis]
+            print(f'test the first feature norm is {LA.norm(train_feature_norm[0,:])}')
+            return train_feature_norm, test_feature_norm
+        else:
+            print(f'do not normalize feature')
+            return train_feature, test_feature
 
     elif feature == 'all-roberta-large-v1':
-        if os.path.exists(f'features/{dataset}_{feature}_train.npy'):
-            train_feature = np.load(f'features/{dataset}_{feature}_train.npy')
-            test_feature = np.load(f'features/{dataset}_{feature}_test.npy')
+        if dataset =='dbpedia':
+            train_path =f'/home/xuandongz/indkNN/features/dbpedia_all-roberta-large-v1_train.npy'
+            test_path = f'/home/xuandongz/indkNN/features/dbpedia_all-roberta-large-v1_test.npy'
+        else:
+            train_path = f'features/{dataset}_{feature}_train.npy'
+            test_path = f'features/{dataset}_{feature}_test.npy'
+        if os.path.exists(train_path):
+            train_feature = np.load(train_path)
+            test_feature = np.load(test_path)
+            #return train_feature, test_feature
+        else:
+            model = SentenceTransformer('all-roberta-large-v1')
+            train_feature = model.encode(train_datapoint)
+            print('feature shape', train_feature.shape)
+            test_feature = model.encode(test_datapoint)
+            np.save(f'features/{dataset}_{feature}_train.npy', train_feature)
+            np.save(f'features/{dataset}_{feature}_test.npy', test_feature)
+        if norm == 'centering+L2':
+            print('use centering and L2')
+            print(f'test the first feature before normalization is {LA.norm(train_feature[0,:])}')
+            train_mean = np.mean(train_feature, axis=0)
+            print(f'train_mean is {train_mean}')
+            train_var = np.var(train_feature, axis=0)
+            test_mean = np.mean(test_feature, axis=0)
+            test_var = np.var(test_feature, axis=0)
+            train_feature_center = train_feature -train_mean
+            test_feature_center = test_feature - test_mean
+            #train_feature_center = (train_feature -train_mean) / np.sqrt(train_var + 1e-5)
+            #test_feature_center  = (test_feature - test_mean) / np.sqrt(test_var + 1e-5)
+            train_l2_norm = LA.norm(train_feature_center, axis=1)
+            test_l2_norm = LA.norm(test_feature_center, axis=1)
+            train_feature_norm = train_feature_center / train_l2_norm[:, np.newaxis]
+            test_feature_norm = test_feature_center / test_l2_norm[:, np.newaxis]
+            print(f'test the first feature norm is {LA.norm(train_feature_norm[0,:])}')
+            return train_feature_norm, test_feature_norm
+        else:
+            print(f'do not normalize feature')
             return train_feature, test_feature
-        model = SentenceTransformer('all-roberta-large-v1')
-        train_feature = model.encode(train_datapoint)
-        print('feature shape', train_feature.shape)
-        test_feature = model.encode(test_datapoint)
-        np.save(f'features/{dataset}_{feature}_train.npy', train_feature)
-        np.save(f'features/{dataset}_{feature}_test.npy', test_feature)
-        return train_feature, test_feature
 
     elif feature == 'resnext29':
         if os.path.exists(dataset + '_resnext29_train.npy'):

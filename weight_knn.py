@@ -109,6 +109,12 @@ def PrepareData(dataset, feature, num_query, dataset_path):
             test_dataset = ori_dataset['test']['text']
             train_labels = ori_dataset['train']['label']
             test_labels = ori_dataset['test']['label']
+        elif dataset == 'dbpedia':
+            ori_dataset = load_dataset('dbpedia_14')
+            train_dataset = ori_dataset['train']['content']
+            test_dataset = ori_dataset['test']['content']
+            train_labels = ori_dataset['train']['label']
+            test_labels = ori_dataset['test']['label']
     elif feature == 'resnet29':
         normalize = transforms.Normalize(mean=[0.491, 0.482, 0.4465],
                                          std=[0.202, 0.1994, 0.2010])
@@ -167,7 +173,8 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
             dis = -np.array(dis)
             #dis = -np.dot(filter_private_data, query_data)/(np.linalg.norm(filter_private_data, axis=1)*np.linalg.norm(query_data))
         # select_teacher = np.random.choice(private_data.shape[0], int(prob * num_train))
-        if dataset in {'sst2', 'agnews'}:
+        # if dataset in {'sst2', 'agnews'}:
+        if dataset in {'sst2'}:
             dis = -util.cos_sim(filter_private_data, query_data).reshape(-1)
         else:
             dis = np.linalg.norm(filter_private_data - query_data, axis=1)
@@ -180,7 +187,8 @@ def IndividualkNN(dataset, feature='resnet50', nb_teachers=150, num_query=1000, 
 
         # kernel_weight = [np.exp(-np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) for i in original_topk_index_set]
         # kernel_weight = [np.exp(util.cos_sim(private_data_list[i], query_data)[0][0] ** 2 / var) for i in original_topk_index_set]
-        if dataset in {'sst2', 'agnews'}:
+        # if dataset in {'sst2', 'agnews'}:
+        if dataset in {'sst2'}:
             temp_d = util.cos_sim(private_data_list[original_topk_index_set], query_data).reshape(-1)
             kernel_weight = [np.exp(temp_d[i] ** 2 / var) for i in range(len(original_topk_index_set))]
         else:

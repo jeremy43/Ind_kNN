@@ -17,21 +17,22 @@ import sys
 import os
 import metrics
 from utils import extract_feature
-
+from numpy import linalg as LA
 
 dataset_path = '/home/yq/dataset'
 
 
 
 
-def IndividualkNN(dataset,  hash_method = 'knn', min_weight = 0.2,  num_tables = 2, proj_dim=12,feature='resnet50',clip=0.25, nb_teachers= 50, num_query=1000, nb_labels=10, ind_budget=20, noisy_scale=0.1, var=1., norm='L2', dataset_path=None):
+def IndividualkNN(dataset, kernel_method='rbf',  hash_method = 'knn',seed=0, min_weight = 0.2,  num_tables = 2, proj_dim=12,feature='resnet50',clip=0.25, nb_teachers= 50, num_query=1000, nb_labels=10, ind_budget=20, noisy_scale=0.1, var=1., norm='centering+L2', dataset_path=None):
     # mask_idx masked private data that are deleted.  only train_data[mask_idx!=0] will be used for kNN.
     print('which norm', norm)
-    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path, norm='centering+L2')
+    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path, seed, norm=norm)
     print('shape of feature', private_data_list.shape)
+    print(f'the second data norm is {LA.norm(private_data_list[0])}')
     # construct hash table
     print(f'num_tables is {num_tables} and proj_dim is {proj_dim}')
-    hash_path = f'hash_table/{dataset}_num_tables{num_tables}_projdim{proj_dim}.pkl'
+    hash_path = f'hash_table/{dataset}_num_tables{num_tables}_projdim{proj_dim}_norm{norm}.pkl'
     if os.path.exists(hash_path):
 
         with open(hash_path, 'rb') as f:
@@ -69,13 +70,17 @@ def IndividualkNN(dataset,  hash_method = 'knn', min_weight = 0.2,  num_tables =
         #select_neighbors = np.array(select_neighbors)
         #temp_d = util.cos_sim(private_data_list[select_neighbors], query_data).reshape(-1)
         #kernel_weight = [np.exp(-temp_d[i] ** 2 / var) for i in range(len(select_neighbors))]
-        if dataset in {'sst2', 'agnews'}:
-            temp_d = util.cos_sim(private_data_list[select_neighbors], query_data).reshape(-1)
-            kernel_weight = [np.exp(-temp_d[i] ** 2 / var) for i in range(len(select_neighbors))]
-        else:
+        if kernel_method=='cosine':
+            kernel_weight = np.dot(private_data_list[select_neighbors], query_data)
+            #print(f'kernel_weight shape is {kernel_weight.shape}')
+            #temp_d = util.cos_sim(private_data_list[select_neighbors], query_data).reshape(-1)
+            #kernel_weight = [np.exp(-temp_d[i] ** 2 / var) for i in range(len(select_neighbors))]
+        elif kernel_method =='RBF':
             kernel_weight = [np.exp(-np.linalg.norm(private_data_list[x] - query_data) ** 2 / var) for x in select_neighbors]
-        #print(f'length of kernel_weight {len(kernel_weight)}')
-        normalized_weight = [x*min(1, clip/x) for x in kernel_weight]
+        #print(f' min of weight is {min(kernel_weight)} and max weight is {max(kernel_weight)}')
+        elif kernel_method == 'student':
+             kernel_weight = [(1+np.linalg.norm(private_data_list[x] - query_data) ** 2 / var)**(-(var+1)/2) for x in select_neighbors]
+        normalized_weight  = kernel_weight
         kernel_weight = np.array(kernel_weight)
         nb_teachers = len(kernel_weight)
         if hash_method == 'basic':
