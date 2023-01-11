@@ -192,6 +192,8 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         #normalized_weight = [x/sum_weight for x in kernel_weight]
         normalized_weight = np.array(kernel_weight)
         keep_idx_in_normalized = np.where(normalized_weight > min_weight)[0]
+        n_neighbor = len(keep_idx_in_normalized)
+        rescale_noise = n_neighbor * noisy_scale
         # cur_weight = min_weight
         # while len(keep_idx_in_normalized) < 100 and cur_weight > 0:
         #     cur_weight -= 0.1
@@ -208,8 +210,8 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         for i in range(len(original_top_index_set)):
             select_idx = original_top_index_set[i]
             idx_normalized = keep_idx_in_normalized[i]
-            vote_count[private_label_list[select_idx]] += min(mask_idx[select_idx], normalized_weight[idx_normalized])
-            mask_idx[select_idx] -= normalized_weight[idx_normalized]
+            vote_count[private_label_list[select_idx]] += min(np.sqrt(mask_idx[select_idx]), normalized_weight[idx_normalized])
+            mask_idx[select_idx] -= normalized_weight[idx_normalized]**2
         for i in range(nb_labels):
             vote_count[i] += np.random.normal(scale=noisy_scale)
         predict_labels.append(np.argmax(vote_count))

@@ -11,8 +11,8 @@ Set the Parameters
 DATASET_PATH = '/home/yq/dataset'
 NB_TEACHERS = [100]
 NUM_CLASS = 10
-NUM_QUERY = 400
-VARS = np.exp([  0.5])
+NUM_QUERY = 200
+VARS = np.exp([  1.6])
 CLIPS=[ 1.0]
 #NOISY_SCALES = [0]  # nondp
 FEATURE = 'resnet50'
@@ -22,30 +22,31 @@ FEATURE = 'resnet50'
 DATASET = 'cifar10'
 EPS_LIST = [1.3**x*0.1 for x in range(12)]
 NOISE_MUL_LIST = [30.75, 24.19, 19.03, 14.96, 11.76, 9.24, 7.26, 5.71, 4.49, 3.54, 2.79, 2.2]
-IND_BUDGETS =[0.6, 1.0]
+IND_BUDGETS =[0.6, 1.0, 1.5]
 #IND_BUDGETS = [0.25]
 NORM = 'L2'
 num_point = 12
 kNN_file_name = f'kNN_{DATASET}_Query_{NUM_QUERY}_record.pkl'
 print(f'file_name is {kNN_file_name}')
 idx = 0
-kernel_method = 'cosine'
+kernel_method = 'RBF'
 test_ac_list = []
 seed = random.randint(1,100)
-for idx  in range(4,5):
+for idx  in range(7,8):
     eps = EPS_LIST[idx]
     print('idx ', idx, 'current epsilon', eps)
     noise_mul  = NOISE_MUL_LIST[idx]
     optimal_ac = 0
     for ind_budget in IND_BUDGETS:
         #for sigma in NOISY_SCALES:
-        sigma = ind_budget * noise_mul
+        #sigma = ind_budget * noise_mul
+        sigma = np.sqrt(ind_budget)*noise_mul
         #sigma = 0
         print('current budget is', ind_budget, 'sigma is', sigma)
         for clip in CLIPS:
             for var in VARS:
                 #for max_dis in np.exp([2.5, 2.75] ):
-                for min_weight in ([0.5,  0.55]):
+                for min_weight in ([0.8]):
                     each_ac_list = []
                     for repeat in range(1):
                         print(f"dataset={DATASET}, kernel_method={kernel_method}, min_weight={min_weight}, var={np.log(var)},  noise_scale={np.log(sigma)}, ind_budget={ind_budget},  norm={NORM}")
