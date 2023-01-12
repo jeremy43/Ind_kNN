@@ -3,66 +3,69 @@ from hand_dp import hand_dp
 import numpy as np
 import random
 import pickle
+
 """
 Set the Parameters
 """
 # dataset_path = '/home/yq/dataset'
 # dataset_path = '/home/xuandong/mnt/dataset/'
-DATASET_PATH = '/home/yq/dataset'
+# DATASET_PATH = '/home/yq/dataset'
+DATASET_PATH = '/Users/xuandongzhao/Downloads/dataset'
 NB_TEACHERS = [100]
 NUM_CLASS = 10
 NUM_QUERY = 100
-VARS = np.exp([  1.7])
-CLIPS=[ 1.0]
-#NOISY_SCALES = [0]  # nondp
+VARS = np.exp([1.7])
+CLIPS = [1.0]
+# NOISY_SCALES = [0]  # nondp
 FEATURE = 'resnet50'
-#DATASET = 'INaturalist'
-#FEATURE = 'all-roberta-large-v1'
-#DATASET = 'sst2'
+# DATASET = 'INaturalist'
+# FEATURE = 'all-roberta-large-v1'
+# DATASET = 'sst2'
 DATASET = 'cifar10'
-EPS_LIST = [1.3**x*0.1 for x in range(12)]
+EPS_LIST = [1.3 ** x * 0.1 for x in range(12)]
 NOISE_MUL_LIST = [30.75, 24.19, 19.03, 14.96, 11.76, 9.24, 7.26, 5.71, 4.49, 3.54, 2.79, 2.2]
 NORM = 'L2'
 num_point = 12
 
-SIGMA_KERNEL = [  4.0]
+SIGMA_KERNEL = [4.0]
 kNN_file_name = f'kNN_{DATASET}_Query_{NUM_QUERY}_record.pkl'
 print(f'file_name is {kNN_file_name}')
 idx = 0
 kernel_method = 'RBF'
 test_ac_list = []
-h = 0.25 # ratio of budget for gaussian mechanism
+h = 0.25  # ratio of budget for gaussian mechanism
 # sigma_1 = np.sqrt(T *noise_mul**2/h)
-seed = random.randint(1,100)
-for idx  in range(1):
+# seed = random.randint(1, 100)
+for idx in range(1):
     eps = EPS_LIST[idx]
     print('idx ', idx, 'current epsilon', eps)
-    noise_mul  = NOISE_MUL_LIST[idx]
+    noise_mul = NOISE_MUL_LIST[idx]
     optimal_ac = 0
-    # alpha * ind_budget  = alpha/(2*noise_mul**2)
-    ind_budget = 1.0/(2*noise_mul**2)
+    # alpha * ind_budget = alpha / (2 * noise_mul ** 2)
+    ind_budget = 1.0 / (2 * noise_mul ** 2)
     for basic_sigma in SIGMA_KERNEL:
-        #sigma = 0
-        #basic_sigma = 0
+        # sigma = 0
+        # basic_sigma = 0
         print('current budget is', ind_budget, 'sigma is', basic_sigma)
-        for h in [ 0.1, 0.5]:
+        # for h in [0.1, 0.5]:
+        for h in [0.7]:
             # h represents the ratio of budget used to release the number of neighbors
-            sigma_1 = np.sqrt(NUM_QUERY/(2*ind_budget*h))
+            sigma_1 = np.sqrt(NUM_QUERY / (2 * ind_budget * h))
             for var in VARS:
-                #for max_dis in np.exp([2.5, 2.75] ):
+                # for max_dis in np.exp([2.5, 2.75] ):
                 for min_weight in ([0.8]):
                     each_ac_list = []
-                    for repeat in range(1):
+                    for seed in [0, 1, 2, 5, 10]:
                         print(f"dataset={DATASET}, kernel_method={kernel_method}, min_weight={min_weight}, var={np.log(var)}, sigma_1 is {sigma_1},  basic_sigma={np.log(basic_sigma)}, ind_budget={ind_budget},  norm={NORM}")
 
                         ac = IndividualkNN(dataset=DATASET, var=var, kernel_method=kernel_method, noisy_scale=basic_sigma,
-                                   feature=FEATURE, num_query=NUM_QUERY, min_weight=min_weight,  sigma_1 = sigma_1, 
-                                   ind_budget=ind_budget, nb_labels=NUM_CLASS,seed=seed, dataset_path=DATASET_PATH)
+                                           feature=FEATURE, num_query=NUM_QUERY, min_weight=min_weight, sigma_1=sigma_1,
+                                           ind_budget=ind_budget, nb_labels=NUM_CLASS, seed=seed, dataset_path=DATASET_PATH)
                         print(f"accuracy={ac} \n")
                         each_ac_list.append(ac)
                 each_ac_list = np.array(each_ac_list)
                 optimal_ac = max(optimal_ac, np.mean(each_ac_list))
-    print(f'when eps is{eps} the best accuracy is {optimal_ac}')
+    print(f'when eps is {eps} the best accuracy is {optimal_ac}')
     test_ac_list.append(optimal_ac)
 record = {}
 record['eps_list'] = EPS_LIST
@@ -70,7 +73,7 @@ record['noise_mul_list'] = NOISE_MUL_LIST
 record['acc_kNN'] = test_ac_list
 with open(kNN_file_name, 'wb') as f:
     pickle.dump(record, f)
-#print('indKNN acc', ac)
+# print('indKNN acc', ac)
 """
 #Result of handcrafted dp
 # such that the eps is chosen from [1.3**x*0.1 for x in range(10)]

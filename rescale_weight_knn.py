@@ -13,64 +13,53 @@ import argparse
 from utils import extract_feature
 from sentence_transformers import util
 from correct_weight_knn import PrepareData
-dataset_path = '/home/yq/dataset'
 
 
-def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=150, num_query=1000,  nb_labels=10, ind_budget=20,min_weight=0.1,  noisy_scale=0.1, sigma_1 = 0.1,  seed=0, var=1., norm='centering+L2',dataset_path=None):
+def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=150, num_query=1000, nb_labels=10, ind_budget=20, min_weight=0.1, noisy_scale=0.1, sigma_1=0.1, seed=0, var=1., norm='centering+L2', dataset_path=None):
     # mask_idx masked private data that are deleted.  only train_data[mask_idx!=0] will be used for kNN.
-    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path,seed, norm=norm)
+    private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path, seed, norm=norm)
     print(f'length of query list={len(query_data_list)}')
     print('shape of feature', private_data_list.shape)
     mask_idx = np.ones(len(private_data_list)) * ind_budget
     # pointer to original idx.
     original_idx = np.array([x for x in range(len(private_data_list))])
     # keep_idx denote the data that is not deleted.
-    max_clip = 0
     sum_neighbors = 0
     teachers_preds = np.zeros([num_query, nb_teachers])
     predict_labels = []
-    track_k_weight = []
     num_data = []
     for idx in range(num_query):
         query_data = query_data_list[idx]
         if idx % 100 == 0:
             print('current query idx', idx)
-        # print(f'idx is {idx}')
         filter_private_data = private_data_list[mask_idx > 0]
-        
-        if kernel_method=='cosine':
-            dis =  -np.dot(filter_private_data, query_data)
-            #dis = -util.cos_sim(filter_private_data, query_data).reshape(-1)
-        elif kernel_method=='RBF' or 'student':
+
+        if kernel_method == 'cosine':
+            dis = -np.dot(filter_private_data, query_data)
+        elif kernel_method == 'RBF' or 'student':
             dis = np.linalg.norm(filter_private_data - query_data, axis=1)
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
         # to speed up the experiment, only keep the top 3k neighbors' prediction.
         num_data.append(len(keep_idx))
-        #print(f'number of data is {len(keep_idx)}')
-        keep_idx =keep_idx[np.argsort(dis)[:5000]] 
-        #print(f'length of keep_idx is {len(keep_idx)}')
-        if len(keep_idx)==0 or len(keep_idx)==1:
+        # print(f'number of data is {len(keep_idx)}')
+        keep_idx = keep_idx[np.argsort(dis)[:5000]]
+        # print(f'length of keep_idx is {len(keep_idx)}')
+        if len(keep_idx) == 0 or len(keep_idx) == 1:
             print('private dataset is now empty')
             predict_labels.append(0)
             continue
-        if kernel_method=='cosine':
+        if kernel_method == 'cosine':
             kernel_weight = np.dot(private_data_list[keep_idx], query_data)
-            #temp_d = util.cos_sim(private_data_list[keep_idx], query_data).reshape(-1)
-            #kernel_weight = [np.exp(-temp_d[i] ** 2 / var) for i in range(len(keep_idx)) ]
-        elif kernel_method=='RBF':
+        elif kernel_method == 'RBF':
             kernel_weight = [np.exp(-np.linalg.norm(private_data_list[x] - query_data) ** 2 / var) for x in keep_idx]
-        # print(f'length of keep_idx is {len(keep_idx)}')
         elif kernel_method == 'student':
-             kernel_weight = [(1+np.linalg.norm(private_data_list[i] - query_data) ** 2 / var)**(-(var+1)/2) for i in keep_idx]
+            kernel_weight = [(1 + np.linalg.norm(private_data_list[i] - query_data) ** 2 / var) ** (-(var + 1) / 2) for i in keep_idx]
         if len(keep_idx) == 0 or len(keep_idx) == 1:
             print('private dataset is empty')
             predict_labels.append(0)
             continue
         kernel_weight = np.array(kernel_weight)
-        #normalized_weight = [x*min(1, clip/x) for x in kernel_weight]
-        #track_k_weight.append(kernel_weight[10])
-        #print(f' min of weight is {min(kernel_weight)} and max weight is {max(kernel_weight)}')
-        #normalized_weight = [x/sum_weight for x in kernel_weight]
+        # print(f' min of weight is {min(kernel_weight)} and max weight is {max(kernel_weight)}')
         normalized_weight = np.array(kernel_weight)
         keep_idx_in_normalized = np.where(normalized_weight > min_weight)[0]
         n_neighbor = len(keep_idx_in_normalized)
@@ -94,24 +83,22 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         for i in range(len(original_top_index_set)):
             select_idx = original_top_index_set[i]
             idx_normalized = keep_idx_in_normalized[i]
-            n_neighbor_contrib = 1.0/(2*sigma_1**2)
-            rescale_contrib = normalized_weight[idx_normalized]**2/(2*rescale_noise**2)
-            mask_idx[select_idx]-=n_neighbor_contrib
-            if mask_idx[select_idx]<=0:
+            n_neighbor_contrib = 1.0 / (2 * sigma_1 ** 2)
+            rescale_contrib = normalized_weight[idx_normalized] ** 2 / (2 * rescale_noise ** 2)
+            mask_idx[select_idx] -= n_neighbor_contrib
+            if mask_idx[select_idx] <= 0:
                 continue
-            vote_count[private_label_list[select_idx]] += min(np.sqrt(2*mask_idx[select_idx]*(rescale_noise**2)), normalized_weight[idx_normalized])
+            vote_count[private_label_list[select_idx]] += min(np.sqrt(2 * mask_idx[select_idx] * (rescale_noise ** 2)), normalized_weight[idx_normalized])
             mask_idx[select_idx] -= rescale_contrib
-        #print(f'max vote count is {max(vote_count)} and noise scale is {noisy_scale}')
+        # print(f'max vote count is {max(vote_count)} and noise scale is {noisy_scale}')
         for i in range(nb_labels):
             vote_count[i] += np.random.normal(scale=rescale_noise)
         predict_labels.append(np.argmax(vote_count))
     print('remain dataset size is', num_data[-1])
     print('averaged neighbors is {}'.format(sum_neighbors / len(teachers_preds)))
     print('answer {} queries over {}'.format(len(predict_labels), len(teachers_preds)))
-    # acct.compose_poisson_subsampled_mechanisms(gaussian2, prob,coeff = len(stdnt_labels))
+    # acct.compose_poisson_subsampled_mechanisms(gaussian2, prob, coeff=len(stdnt_labels))
     predict_labels = np.array(predict_labels)
-    track_k_weight = np.array(track_k_weight)
-    print(f'average top k neighbor weight is {np.mean(track_k_weight)}')
     accuracy = metrics.accuracy(predict_labels, query_label_list)
     return accuracy * 100
 

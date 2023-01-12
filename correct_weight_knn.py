@@ -13,8 +13,6 @@ import argparse
 from utils import extract_feature
 from sentence_transformers import util
 
-dataset_path = '/home/yq/dataset'
-
 
 def PrepareData(dataset, feature, num_query, dataset_path, seed, norm=None):
     """
