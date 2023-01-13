@@ -47,7 +47,7 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         # to speed up the experiment, only keep the top 3k neighbors' prediction.
         num_data.append(len(keep_idx))
         #print(f'number of data is {len(keep_idx)}')
-        keep_idx =keep_idx[np.argsort(dis)[:5000]] 
+        keep_idx =keep_idx[np.argsort(dis)[:6000]] 
         #print(f'length of keep_idx is {len(keep_idx)}')
         if len(keep_idx)==0 or len(keep_idx)==1:
             print('private dataset is now empty')
@@ -75,26 +75,20 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         keep_idx_in_normalized = np.where(normalized_weight > min_weight)[0]
         n_neighbor = len(keep_idx_in_normalized)
         n_neighbor = max(n_neighbor + np.random.normal(scale=sigma_1), 30)
-        print('number of neighbor', n_neighbor, 'true num of neighbor', len(keep_idx_in_normalized))
+        #n_neighbor = 50
+        #print('number of neighbor', n_neighbor, 'true num of neighbor', len(keep_idx_in_normalized))
         rescale_noise = np.sqrt(n_neighbor) * noisy_scale
-        # cur_weight = min_weight
-        # while len(keep_idx_in_normalized) < 100 and cur_weight > 0:
-        #     cur_weight -= 0.1
-        #     keep_idx_in_normalized = np.where(normalized_weight > cur_weight)[0]
-        # print(f'keep idx ={len(keep_idx_in_normalized)}')
         original_top_index_set = keep_idx[keep_idx_in_normalized]
-        # print(f'length of neighbors is {len(original_top_index_set)}')
         sum_neighbors += len(original_top_index_set)
-        # original_top_index_set =  keep_idx[np.where(kernel_weight>min_weight)]
         vote_count = np.zeros(nb_labels)
         if len(original_top_index_set) == 0:
             predict_labels.append(0)
             continue
+        n_neighbor_contrib = 1.0/(2*sigma_1**2)
         # count privacy loss: loss of releasing num of neighbor and the loss of releasing kernel weight
         for i in range(len(original_top_index_set)):
             select_idx = original_top_index_set[i]
             idx_normalized = keep_idx_in_normalized[i]
-            n_neighbor_contrib = 1.0/(2*sigma_1**2)
             rescale_contrib = normalized_weight[idx_normalized]**2/(2*rescale_noise**2)
             mask_idx[select_idx]-=n_neighbor_contrib
             if mask_idx[select_idx]<=0:
@@ -105,15 +99,18 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         for i in range(nb_labels):
             vote_count[i] += np.random.normal(scale=rescale_noise)
         predict_labels.append(np.argmax(vote_count))
+        if idx%200==0 and idx>0:
+            tmp_predict_labels = np.array(predict_labels)
+            accuracy = metrics.accuracy(predict_labels, query_label_list[:idx+1])
+            print(f'seed is {seed} test accuracy when num of query is {idx} is {accuracy}')
+            print('current dataset size is', num_data[-1])
     print('remain dataset size is', num_data[-1])
     print('averaged neighbors is {}'.format(sum_neighbors / len(teachers_preds)))
     print('answer {} queries over {}'.format(len(predict_labels), len(teachers_preds)))
     # acct.compose_poisson_subsampled_mechanisms(gaussian2, prob,coeff = len(stdnt_labels))
     predict_labels = np.array(predict_labels)
-    track_k_weight = np.array(track_k_weight)
-    print(f'average top k neighbor weight is {np.mean(track_k_weight)}')
     accuracy = metrics.accuracy(predict_labels, query_label_list)
-    return accuracy * 100
+    return num_data, accuracy * 100
 
 
 if __name__ == '__main__':

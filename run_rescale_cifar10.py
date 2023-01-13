@@ -11,9 +11,8 @@ Set the Parameters
 DATASET_PATH = '/home/yq/dataset'
 NB_TEACHERS = [100]
 NUM_CLASS = 10
-NUM_QUERY = 100
+NUM_QUERY = 800
 VARS = np.exp([  1.7])
-CLIPS=[ 1.0]
 #NOISY_SCALES = [0]  # nondp
 FEATURE = 'resnet50'
 #DATASET = 'INaturalist'
@@ -25,16 +24,19 @@ NOISE_MUL_LIST = [30.75, 24.19, 19.03, 14.96, 11.76, 9.24, 7.26, 5.71, 4.49, 3.5
 NORM = 'L2'
 num_point = 12
 
-SIGMA_KERNEL = [  4.0]
-kNN_file_name = f'kNN_{DATASET}_Query_{NUM_QUERY}_record.pkl'
+SIGMA_KERNEL =[0.7,1., 2.5, 3.5, 4]
+VARS  = np.exp([1.7])
+kNN_file_name = f'rescale_kNN_{DATASET}_Query_{NUM_QUERY}_record.pkl'
 print(f'file_name is {kNN_file_name}')
 idx = 0
 kernel_method = 'RBF'
 test_ac_list = []
 h = 0.25 # ratio of budget for gaussian mechanism
 # sigma_1 = np.sqrt(T *noise_mul**2/h)
-seed = random.randint(1,100)
-for idx  in range(1):
+best_hyper_list = []
+
+for idx  in range(12):
+    best_hyper = {}
     eps = EPS_LIST[idx]
     print('idx ', idx, 'current epsilon', eps)
     noise_mul  = NOISE_MUL_LIST[idx]
@@ -43,30 +45,39 @@ for idx  in range(1):
     ind_budget = 1.0/(2*noise_mul**2)
     for basic_sigma in SIGMA_KERNEL:
         #sigma = 0
-        #basic_sigma = 0
+        if idx<5 and basic_sigma<2.5:
+            continue
+        if idx<2 and basic_sigma<3.5:
+            continue
         print('current budget is', ind_budget, 'sigma is', basic_sigma)
-        for h in [ 0.1, 0.5]:
+        for h in [4.0]:
             # h represents the ratio of budget used to release the number of neighbors
             sigma_1 = np.sqrt(NUM_QUERY/(2*ind_budget*h))
             for var in VARS:
                 #for max_dis in np.exp([2.5, 2.75] ):
-                for min_weight in ([0.8]):
+                for min_weight in ([0.8, 0.82]):
                     each_ac_list = []
-                    for repeat in range(1):
-                        print(f"dataset={DATASET}, kernel_method={kernel_method}, min_weight={min_weight}, var={np.log(var)}, sigma_1 is {sigma_1},  basic_sigma={np.log(basic_sigma)}, ind_budget={ind_budget},  norm={NORM}")
+                    new_hyper = {'min_weight':min_weight, 'sigma2':basic_sigma, 'h':h}
+                    for seed in [0, 1, 2, 3, 10, 100]:
+                        print(f"dataset={DATASET},h={h}, kernel_method={kernel_method}, min_weight={min_weight}, var={np.log(var)}, sigma_1 is {sigma_1},  basic_sigma={basic_sigma}, ind_budget={ind_budget},  norm={NORM}")
 
-                        ac = IndividualkNN(dataset=DATASET, var=var, kernel_method=kernel_method, noisy_scale=basic_sigma,
+                        num_data, ac = IndividualkNN(dataset=DATASET, var=var, kernel_method=kernel_method, noisy_scale=basic_sigma,
                                    feature=FEATURE, num_query=NUM_QUERY, min_weight=min_weight,  sigma_1 = sigma_1, 
                                    ind_budget=ind_budget, nb_labels=NUM_CLASS,seed=seed, dataset_path=DATASET_PATH)
-                        print(f"accuracy={ac} \n")
+                        print(f"seed is {seed}, accuracy={ac} \n")
                         each_ac_list.append(ac)
                 each_ac_list = np.array(each_ac_list)
-                optimal_ac = max(optimal_ac, np.mean(each_ac_list))
+                print(f'mean over seed accuracy is {np.mean(each_ac_list)}')
+                if np.mean(each_ac_list)>optimal_ac:
+                    best_hyper = new_hyper
+                    optimal_ac = max(optimal_ac, np.mean(each_ac_list))
     print(f'when eps is{eps} the best accuracy is {optimal_ac}')
     test_ac_list.append(optimal_ac)
+    best_hyper_list.append(best_hyper)
 record = {}
 record['eps_list'] = EPS_LIST
 record['noise_mul_list'] = NOISE_MUL_LIST
+record['best_hyper'] = best_hyper_list
 record['acc_kNN'] = test_ac_list
 with open(kNN_file_name, 'wb') as f:
     pickle.dump(record, f)
