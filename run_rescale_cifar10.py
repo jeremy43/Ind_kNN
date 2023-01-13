@@ -3,35 +3,31 @@ from hand_dp import hand_dp
 import numpy as np
 import random
 import pickle
+
 """
 Set the Parameters
 """
 # dataset_path = '/home/yq/dataset'
 # dataset_path = '/home/xuandong/mnt/dataset/'
-DATASET_PATH = '/home/yq/dataset'
-NB_TEACHERS = [100]
+# DATASET_PATH = '/home/yq/dataset'
+DATASET_PATH = '/Users/xuandongzhao/Downloads/dataset'
 NUM_CLASS = 10
 NUM_QUERY = 800
 VARS = np.exp([  1.7])
 #NOISY_SCALES = [0]  # nondp
 FEATURE = 'resnet50'
-#DATASET = 'INaturalist'
-#FEATURE = 'all-roberta-large-v1'
-#DATASET = 'sst2'
 DATASET = 'cifar10'
-EPS_LIST = [1.3**x*0.1 for x in range(12)]
+EPS_LIST = [1.3 ** x * 0.1 for x in range(12)]
 NOISE_MUL_LIST = [30.75, 24.19, 19.03, 14.96, 11.76, 9.24, 7.26, 5.71, 4.49, 3.54, 2.79, 2.2]
-NORM = 'L2'
+NORM = 'centering+L2'
 num_point = 12
-
 SIGMA_KERNEL =[0.7,1., 2.5, 3.5, 4]
-VARS  = np.exp([1.7])
 kNN_file_name = f'rescale_kNN_{DATASET}_Query_{NUM_QUERY}_record.pkl'
+SIGMA_KERNEL = [4.0]
 print(f'file_name is {kNN_file_name}')
-idx = 0
 kernel_method = 'RBF'
 test_ac_list = []
-h = 0.25 # ratio of budget for gaussian mechanism
+h = 0.25  # ratio of budget for gaussian mechanism
 # sigma_1 = np.sqrt(T *noise_mul**2/h)
 best_hyper_list = []
 
@@ -39,10 +35,10 @@ for idx  in range(12):
     best_hyper = {}
     eps = EPS_LIST[idx]
     print('idx ', idx, 'current epsilon', eps)
-    noise_mul  = NOISE_MUL_LIST[idx]
+    noise_mul = NOISE_MUL_LIST[idx]
     optimal_ac = 0
-    # alpha * ind_budget  = alpha/(2*noise_mul**2)
-    ind_budget = 1.0/(2*noise_mul**2)
+    # alpha * ind_budget = alpha / (2 * noise_mul ** 2)
+    ind_budget = 1.0 / (2 * noise_mul ** 2)
     for basic_sigma in SIGMA_KERNEL:
         #sigma = 0
         if idx<5 and basic_sigma<2.5:
@@ -52,9 +48,8 @@ for idx  in range(12):
         print('current budget is', ind_budget, 'sigma is', basic_sigma)
         for h in [4.0]:
             # h represents the ratio of budget used to release the number of neighbors
-            sigma_1 = np.sqrt(NUM_QUERY/(2*ind_budget*h))
+            sigma_1 = np.sqrt(NUM_QUERY / (2 * ind_budget * h))
             for var in VARS:
-                #for max_dis in np.exp([2.5, 2.75] ):
                 for min_weight in ([0.8, 0.82]):
                     each_ac_list = []
                     new_hyper = {'min_weight':min_weight, 'sigma2':basic_sigma, 'h':h}
@@ -81,7 +76,7 @@ record['best_hyper'] = best_hyper_list
 record['acc_kNN'] = test_ac_list
 with open(kNN_file_name, 'wb') as f:
     pickle.dump(record, f)
-#print('indKNN acc', ac)
+# print('indKNN acc', ac)
 """
 #Result of handcrafted dp
 # such that the eps is chosen from [1.3**x*0.1 for x in range(10)]
