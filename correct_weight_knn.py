@@ -151,7 +151,7 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
     sum_neighbors = 0
     teachers_preds = np.zeros([num_query, nb_teachers])
     predict_labels = []
-    track_k_weight = []
+    num_data = []
     for idx in range(num_query):
         query_data = query_data_list[idx]
         if idx % 100 == 0:
@@ -165,8 +165,9 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         elif kernel_method=='RBF' or 'student':
             dis = np.linalg.norm(filter_private_data - query_data, axis=1)
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
+        num_data.append(len(keep_idx))
         # to speed up the experiment, only keep the top 3k neighbors' prediction.
-        keep_idx =keep_idx[np.argsort(dis)[:3000]] 
+        keep_idx =keep_idx[np.argsort(dis)[:5000]] 
         #print(f'length of keep_idx is {len(keep_idx)}')
         if len(keep_idx)==0 or len(keep_idx)==1:
             print('private dataset is now empty')
@@ -215,12 +216,11 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         for i in range(nb_labels):
             vote_count[i] += np.random.normal(scale=noisy_scale)
         predict_labels.append(np.argmax(vote_count))
+    print(f'remain dataset size is {num_data[-1]}')
     print('averaged neighbors is {}'.format(sum_neighbors / len(teachers_preds)))
     print('answer {} queries over {}'.format(len(predict_labels), len(teachers_preds)))
     # acct.compose_poisson_subsampled_mechanisms(gaussian2, prob,coeff = len(stdnt_labels))
     predict_labels = np.array(predict_labels)
-    track_k_weight = np.array(track_k_weight)
-    print(f'average top k neighbor weight is {np.mean(track_k_weight)}')
     accuracy = metrics.accuracy(predict_labels, query_label_list)
     return accuracy * 100
 

@@ -24,7 +24,7 @@ dataset_path = '/home/yq/dataset'
 
 
 
-def IndividualkNN(dataset, kernel_method='rbf',  hash_method = 'knn',seed=0, min_weight = 0.2,  num_tables = 2, proj_dim=12,feature='resnet50',clip=0.25, nb_teachers= 50, num_query=1000, nb_labels=10, ind_budget=20, noisy_scale=0.1, var=1., norm='centering+L2', dataset_path=None):
+def IndividualkNN(dataset, kernel_method='rbf',  hash_method = 'knn',seed=0, min_weight = 0.2,  num_tables = 2, proj_dim=12,feature='resnet50', nb_teachers= 50, num_query=1000, nb_labels=10, ind_budget=20, noisy_scale=0.1, var=1., norm='centering+L2', dataset_path=None):
     # mask_idx masked private data that are deleted.  only train_data[mask_idx!=0] will be used for kNN.
     print('which norm', norm)
     private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path, seed, norm=norm)
@@ -86,40 +86,40 @@ def IndividualkNN(dataset, kernel_method='rbf',  hash_method = 'knn',seed=0, min
         if hash_method == 'basic':
             for i in range(len(select_neighbors)):
                 neighbor  = select_neighbors[i]
-                vote_count[private_label_list[neighbor]]+= min(mask_idx[neighbor],normalized_weight[i])
-                mask_idx[neighbor]-=  normalized_weight[i]
+                vote_count[private_label_list[neighbor]]+= min(np.sqrt(mask_idx[neighbor]),normalized_weight[i])
+                mask_idx[neighbor]-=  normalized_weight[i]**2
         elif hash_method == 'basic+norm':
             sum_weight = sum(normalized_weight)
             normalized_weight = [x/sum_weight for x in normalized_weight]
             for i in range(len(select_neighbors)):
                 neighbor  = select_neighbors[i]
-                vote_count[private_label_list[neighbor]]+= min(mask_idx[neighbor],normalized_weight[i])
-                mask_idx[neighbor]-=  normalized_weight[i]
+                vote_count[private_label_list[neighbor]]+= min(np.sqrt(mask_idx[neighbor]),normalized_weight[i])
+                mask_idx[neighbor]-=  normalized_weight[i]**2
         elif hash_method =='knn':
             top_k_index = np.argsort(-kernel_weight)[:nb_teachers]
             for i in range(len(top_k_index)):
                 neighbor  = select_neighbors[top_k_index[i]]
-                vote_count[private_label_list[neighbor]]+= min(mask_idx[neighbor],normalized_weight[top_k_index[i]])
+                vote_count[private_label_list[neighbor]]+= min(np.sqrt(mask_idx[neighbor]),normalized_weight[top_k_index[i]])
             for i in range(len(normalized_weight)):
                 neighbor = select_neighbors[i]
-                mask_idx[neighbor]-=  normalized_weight[i]
+                mask_idx[neighbor]-=  normalized_weight[i]**2
         elif hash_method == 'knn+norm':
             top_k_index = np.argsort(-kernel_weight)[:nb_teachers]
             sum_weight = sum(normalized_weight)
             normalized_weight = [x/sum_weight for x in normalized_weight]
             for i in range(len(top_k_index)):
                 neighbor  = select_neighbors[top_k_index[i]]
-                vote_count[private_label_list[neighbor]]+= min(mask_idx[neighbor],normalized_weight[top_k_index[i]])
+                vote_count[private_label_list[neighbor]]+= min(np.sqrt(mask_idx[neighbor]),normalized_weight[top_k_index[i]])
             for i in range(len(normalized_weight)):
                 neighbor = select_neighbors[i]
-                mask_idx[neighbor]-=  normalized_weight[i]
+                mask_idx[neighbor]-=  normalized_weight[i]**2
         elif hash_method =='basic+threshold':
             keep_idx = np.where(kernel_weight>min_weight)[0]
             select_neighbors = select_neighbors[keep_idx]
             for i in range(len(select_neighbors)):
                 neighbor  = select_neighbors[i]
-                vote_count[private_label_list[neighbor]]+= min(mask_idx[neighbor],normalized_weight[keep_idx[i]])
-                mask_idx[neighbor]-=  normalized_weight[keep_idx[i]]
+                vote_count[private_label_list[neighbor]]+= min(np.sqrt(mask_idx[neighbor]),normalized_weight[keep_idx[i]])
+                mask_idx[neighbor]-=  normalized_weight[keep_idx[i]]**2
         else:
             print('wrong approach')
         #print(f'max vote_count is{max(vote_count)} sum vote count is {sum(vote_count)}')
