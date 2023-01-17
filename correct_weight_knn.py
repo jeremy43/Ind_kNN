@@ -30,22 +30,6 @@ def PrepareData(dataset, feature, num_query, dataset_path, seed, norm=None):
     """
 
     # Load the dataset
-    if dataset == 'mnist':
-        normalize = transforms.Normalize(mean=[0.485], std=[0.22])
-
-        train_dataset = datasets.MNIST(root=dataset_path, train=False, download=True,
-                                       transform=transforms.Compose(
-                                           [transforms.ToTensor(), normalize]
-                                       ))
-        test_dataset = datasets.MNIST(root=dataset_path, train=False, download=True,
-                                      transform=transforms.Compose(
-                                          [transforms.ToTensor(), normalize]
-                                      ))
-        scattering, K, (h, w) = utils.get_scatter_transform()
-        train_data, test_data = extract_feature(train_dataset, test_dataset)
-        test_labels = test_dataset.targets
-        train_labels = train_dataset.targets
-        return train_data, train_labels, test_data, test_labels
 
     if feature == 'resnet50':
         weight = ResNet50_Weights.IMAGENET1K_V2
@@ -56,6 +40,16 @@ def PrepareData(dataset, feature, num_query, dataset_path, seed, norm=None):
             ))
             test_dataset = datasets.CIFAR10(root=dataset_path, train=False, download=True, transform=transforms.Compose(
                 [transforms.ToTensor(), preprocess]
+            ))
+            test_labels = test_dataset.targets
+            train_labels = train_dataset.targets
+        elif dataset == 'fmnist':
+              
+            train_dataset = datasets.FashionMNIST(root=dataset_path, train=True, download=True, transform=transforms.Compose(
+                [transforms.ToTensor(), transforms.Lambda(lambda x: x.repeat(3, 1, 1)), preprocess]
+            ))
+            test_dataset = datasets.FashionMNIST(root=dataset_path, train=False, download=True, transform=transforms.Compose(
+                [transforms.ToTensor(), transforms.Lambda(lambda x: x.repeat(3, 1, 1)), preprocess]
             ))
             test_labels = test_dataset.targets
             train_labels = train_dataset.targets
