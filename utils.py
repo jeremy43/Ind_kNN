@@ -91,12 +91,8 @@ def extract_feature(train_datapoint, test_datapoint, feature,   dataset='cifar10
         model = resnet50(weights=weight)
         model.eval()
         print('len of data', len(train_datapoint))
-        if dataset =='dbpedia':
-            train_path =f'/home/xuandongz/indkNN/dbpedia_all-roberta-large-v1_train.npy'
-            test_path = f'/home/xuandongz/indkNN/dbpedia_all-roberta-large-v1_test.npy'
-        else:
-            train_path = f'features/{dataset}_{feature}_train.npy'
-            test_path = f'features/{dataset}_{feature}_test.npy'
+        train_path = f'features/{dataset}_{feature}_train.npy'
+        test_path = f'features/{dataset}_{feature}_test.npy'
         if os.path.exists(train_path):
             print('file  exist')
             train_feature = np.load(train_path)
@@ -141,12 +137,9 @@ def extract_feature(train_datapoint, test_datapoint, feature,   dataset='cifar10
             return train_feature, test_feature
 
     elif feature == 'all-roberta-large-v1':
-        if dataset =='dbpedia':
-            train_path =f'/home/xuandongz/indkNN/features/dbpedia_all-roberta-large-v1_train.npy'
-            test_path = f'/home/xuandongz/indkNN/features/dbpedia_all-roberta-large-v1_test.npy'
-        else:
-            train_path = f'features/{dataset}_{feature}_train.npy'
-            test_path = f'features/{dataset}_{feature}_test.npy'
+    
+        train_path = f'features/{dataset}_{feature}_train.npy'
+        test_path = f'features/{dataset}_{feature}_test.npy'
         if os.path.exists(train_path):
             train_feature = np.load(train_path)
             test_feature = np.load(test_path)
@@ -203,50 +196,7 @@ def extract_feature(train_datapoint, test_datapoint, feature,   dataset='cifar10
         np.save(dataset + '_resnext29_train.npy', train_feature)
         np.save(dataset + '_resnext29_test.npy', test_feature)
         return train_feature, test_feature
-    """
-    if feature == 'scatter':
-        scattering, K, (h, w) = get_scatter_transform()
-        train_scatters = []
-        each_length = int((9 + len(train_img)) / 10)
-        for idx in range(10):
-            print('load idx=', idx)
-            train_scatter_path = os.path.join(config.scatter_path, config.dataset + str(idx)+'_train_scatter.pkl')
-            test_scatter_path = os.path.join(config.scatter_path, config.dataset + str(idx)+'_test_scatter.pkl')
-            p1 = idx * each_length
-            p2 = min((idx + 1) * each_length, len(train_img))
-            save_record = []
-            if os.path.exists(train_scatter_path) == False:
-                cache_train_img = [train_img[i] for i in range(p1,p2)]
-                for (train_data,_) in cache_train_img:
-                    train_feature = scattering(train_data)
-                    train_feature = torch.flatten(train_feature)
-                    save_record.append(train_feature)
-                with open(train_scatter_path, 'wb') as f:
-                    pickle.dump(save_record, f)
-            else:
-                with open(train_scatter_path, 'rb') as f:
-                    if len(train_scatters)>0:
-                        #train_scatters = torch.vstack((train_scatters, pickle.load(f)))
-                        train_scatters = train_scatters + pickle.load(f)
-                        # train_data = np.vstack((train_data, pickle.load(f)))
-                    else:
-                        train_scatters = pickle.load(f)
-        return train_scatters, train_scatters
-
-        if os.path.exists(test_scatter_path) == False:
-            test_scatters = []
-            for (test_data, target) in test_img:
-                test_feature = scattering(test_data)
-                test_scatters.append(test_feature)
-            test_scatters = torch.cat(test_scatters, axis=0)
-            with open(test_scatter_path, 'wb') as f:
-                pickle.dump(test_scatters, f)
-        else:
-            with open(test_scatter_path, 'rb') as f:
-                test_scatters = pickle.load(f)
-        return train_scatters, test_scatters
-    """
-
+    
 
 def hamming_precision(y_true, y_pred, torch=True, cate=True):
     acc_list = []

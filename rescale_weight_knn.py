@@ -43,8 +43,6 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         num_data.append(len(keep_idx))
         #print(f'number of data is {len(keep_idx)}')
         keep_idx =keep_idx[np.argsort(dis)[:6000]] 
-        #print(f'length of keep_idx is {len(keep_idx)}')
-        # print(f'length of keep_idx is {len(keep_idx)}')
         if len(keep_idx) == 0 or len(keep_idx) == 1:
             print('private dataset is now empty')
             predict_labels.append(0)
@@ -65,7 +63,6 @@ def IndividualkNN(dataset, kernel_method='rbf', feature='resnet50', nb_teachers=
         keep_idx_in_normalized = np.where(normalized_weight > min_weight)[0]
         n_neighbor = len(keep_idx_in_normalized)
         n_neighbor = max(n_neighbor + np.random.normal(scale=sigma_1), 30)
-        #n_neighbor = 50
         #print('number of neighbor', n_neighbor, 'true num of neighbor', len(keep_idx_in_normalized))
         rescale_noise = np.sqrt(n_neighbor) * noisy_scale
         original_top_index_set = keep_idx[keep_idx_in_normalized]
