@@ -1,7 +1,7 @@
 # indkNN
 
+Implementations of "Private Prediction Strikes Back!” Private Kernelized Nearest Neighbors with
+Individual Rényi Filter"
 Requirement: `opacus==0.14.0`
 
-Change the dataset path in `run_exp.py`
 
-Then `python run_exp.py`

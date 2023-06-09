@@ -7,9 +7,7 @@ import pickle
 """
 Set the Parameters
 """
-# dataset_path = '/home/yq/dataset'
-# dataset_path = '/home/xuandong/mnt/dataset/'
-DATASET_PATH = 'dataset'
+DATASET_PATH = 'dataset/'
 
 NUM_CLASS = 10
 NUM_QUERY = 200
@@ -18,13 +16,11 @@ VARS = np.exp([  1.5])
 #DATASET = 'agnews'
 #FEATURE = 'resnet50'
 #FEATURE = 'resnet50'
-FEATURE = 'vit'
+FEATURE = 'clr'
 #DATASET = 'fmnist'
 DATASET = 'cifar10'
-NORM = 'centering+L2'
-threshold_list = [0.04*x for x in range( 10, 25)] #+[-0.04, -0.08, -0.12]
-#threshold_list = [-0.4, 0.04, 0.5]
-kernel_method = 'RBF'
+threshold_list = [0.03*x for x in range( 0, 20)] #+[-0.04, -0.08, -0.12]
+kernel_method = 'cosine'
 
 
 seed = 0
