@@ -56,7 +56,7 @@ We suggest tune sigma2 between [0.2, 0.8].
 
 Run Ind-kNN on CIFAR-10 on Vision transformer-based features under (epsilon=2.0, delta=1e-5)-DP, run:
 
-'python ind_knn.py --eps=2.0 --delta=1e-5 --threshold=0.26 --kernel_method='cosine' --feature='vit' --dataset='cifar10' --sigma_2=0.5 --num_query=1000'
+`python ind_knn.py --eps=2.0 --delta=1e-5 --threshold=0.26 --kernel_method='cosine' --feature='vit' --dataset='cifar10' --sigma_2=0.5 --num_query=1000`
 
 Run Ind-kNN on AG News on sentence transformer-based features under (epsilon=2.0, delta=1e-5)-DP., run:
 
