@@ -120,12 +120,17 @@ def PrepareData(dataset, feature, num_query, dataset_path, seed):
 
     # Use vision transformer as the feature extractor
     if feature == 'vit':
-        path = './features/'
-        if os.path.exists(path):
-            train_feature = np.load(path + 'vit_cifar_train.npy')
-            test_feature = np.load(path + 'vit_cifar_test.npy')
+
+        path = 'features/'
+        train_path  = path + f'vit_{dataset}_train.npy'
+        test_path = path + f'vit_{dataset}_test.npy'
+        if os.path.exists(train_path):
+            train_feature = np.load(train_path)
+            test_feature = np.load(test_path)
         else:
-            train_feature, test_feature = extract_feature(train_dataset, test_dataset, feature, dataset)
+            print(f'vit train feature is not found under path {train_path}')
+            train_feature, test_feature = extract_feature(feature, dataset=dataset)
+
         # CIFAR-10 train labels obtained through load_dataset is different from that obtained from torchvision.datasets.
         train_ds, test_ds = load_dataset('cifar10', split=['train[:]', 'test[:]'])
         train_labels = train_ds['label']
@@ -181,7 +186,7 @@ def extract_label(dataset, name):
     return label_list
 
 
-def extract_feature(train_datapoint, test_datapoint, feature, dataset='cifar10', feature_path='features/'):
+def extract_feature(feature, train_datapoint=None, test_datapoint=None, dataset='cifar10', feature_path='features/'):
     """
     Extract features with the pre-trained Resnet-50 model, visition transformer, and the sentence transformer.
     :param FLAGS:

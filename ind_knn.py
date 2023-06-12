@@ -17,7 +17,12 @@ from autodp.calibrator_zoo import ana_gaussian_calibrator
 
 
 
-def IndividualkNN(dataset, kernel_method='cosine', feature='resnet50', num_query=1000, nb_labels=10, ind_budget=20, min_weight=0.1, sigma_2=0.1, sigma_1=0.1, seed=0, var=1.,  opt_public=False,  dataset_path=None):
+def IndividualkNN(dataset, kernel_method='cosine', feature='resnet50', num_query=1000, nb_labels=10, threshold=0.1, sigma_2=0.1,noise_mul=1.0, seed=0, var=1.,  opt_public=False,  dataset_path=None, eps=2.0, delta=1e-5):
+
+    ind_budget = 1.0 / (2 * noise_mul ** 2)
+    # sigma_1 denotes the noise scale to perturb the number of neighbors. We set sigma_1 = sqrt(T/6B) according to the paper.
+    sigma_1 = np.sqrt(args.num_query / (6 * ind_budget))
+
     # mask_idx masked private data that are deleted.  only train_data[mask_idx!=0] will be used for kNN.
     private_data_list, private_label_list, query_data_list, query_label_list = PrepareData(dataset, feature, num_query, dataset_path, seed)
     print(f'length of query list={len(query_data_list)}')
@@ -43,9 +48,7 @@ def IndividualkNN(dataset, kernel_method='cosine', feature='resnet50', num_query
             dis = np.linalg.norm(filter_private_data - query_data, axis=1)
             
         keep_idx = original_idx[np.where(mask_idx > 0)[0]]
-        # to speed up the experiment, only keep the top 5k neighbors' prediction.
         num_data.append(len(keep_idx))
-        keep_idx =keep_idx[np.argsort(dis)[:5000]] 
         if len(keep_idx) == 0 or len(keep_idx) == 1:
             print('private dataset is now empty')
             predict_labels.append(0)
@@ -67,7 +70,7 @@ def IndividualkNN(dataset, kernel_method='cosine', feature='resnet50', num_query
         normalized_weight = np.array(kernel_weight)
         # when opt_public is true, we calculate kernel weight for available public data.
         public_kernel_weight = np.array(public_kernel_weight)
-        keep_idx_in_normalized = np.where(normalized_weight > min_weight)[0]
+        keep_idx_in_normalized = np.where(normalized_weight > threshold)[0]
         n_neighbor = len(keep_idx_in_normalized)
         n_neighbor = max(n_neighbor + np.random.normal(scale=sigma_1), 30)
         rescale_noise = np.sqrt(n_neighbor) * sigma_2
@@ -93,7 +96,7 @@ def IndividualkNN(dataset, kernel_method='cosine', feature='resnet50', num_query
         # print(f'max vote count is {max(vote_count)} and noise scale is {noisy_scale}')
         
         if opt_public is True:
-            keep_idx_in_public = np.where((public_mask>0) & (public_kernel_weight>min_weight))[0]
+            keep_idx_in_public = np.where((public_mask>0) & (public_kernel_weight>threshold))[0]
             #if (len(keep_idx_in_public)>100):
             #    print(f'using {len(keep_idx_in_public)} public data for prediction')
             for i in keep_idx_in_public:
@@ -121,32 +124,28 @@ if __name__ == '__main__':
     The implementation of Ind-kNN algorithm.
 
     """
-    NUM_QUERY = 1000
-    eps = 2.0
-    delta = 1e-5
-    ana_calibrate = ana_gaussian_calibrator()
-    mech = ana_calibrate(GaussianMechanism, eps, delta)
-    # Calibrate the noise multiplier such that it achieves (eps, delta)-DP.
-    noise_mul = mech.params['sigma']
-    ind_budget = 1.0 / (2 * noise_mul ** 2)
-    # set sigma_1 = sqrt(T/6B) according to the algorithm
-    sigma_1 = np.sqrt(NUM_QUERY / (6 * ind_budget))
-    # The best hyper-parameter of sigma_2 is usually between [0.2, 0.9]
-    sigma_2 = 0.5
-    min_weight = 0.26
     parser = argparse.ArgumentParser()
+    parser.add_argument('--eps', type = float, default=0.5)
+    parser.add_argument('--delta', type=float, default=1e-5)
+    parser.add_argument('--num_query', type=int, default=1000)
     parser.add_argument('--dataset', choices=['cifar10', 'agnews', 'fmnist', 'dbpedia'], default='cifar10')
     parser.add_argument('--feature', choices=['resnet50', 'vit',  'all-roberta-large-v1'], default='vit')
-    parser.add_argument('--sigma_2', type=float, default=sigma_2, help = 'noise level to perturb the prediction')
-    parser.add_argument('--sigma_1', type=float, default=sigma_1, help = 'noise level to perturb the size of neighbors')
-    parser.add_argument('--ind_budget', type=float, default=ind_budget, help='each private data participates prediciton unless budget is zero')
-    parser.add_argument('--min_weight', type=float, default=min_weight)
+    # The best hyper-parameter of sigma_2 is usually between [0.2, 0.9]
+    parser.add_argument('--sigma_2', type=float, default=0.7, help = 'noise level to perturb the prediction')
+    # We can tune the threshold using search_threshold
+    parser.add_argument('--threshold', type=float, default=0.12)
     parser.add_argument('--nb_labels', type=int, default=10)
-    parser.add_argument('--num_query', type=int, default=1000)
     parser.add_argument('--var', type=float, default=np.exp(1.5), help='RBF kernel bandwidth (not used in cosine kernel')
     parser.add_argument('--opt_public', action='store_true', default=False, help='when true, re-use released predictions as public information')
     parser.add_argument('--dataset_path', type=str, default='./dataset/')
     parser.add_argument('--kernel_method', type=str, default='cosine')
+    args = parser.parse_args()
+    ana_calibrate = ana_gaussian_calibrator()
+    print('eps is ', args.eps, 'delta is ', type(args.delta))
+    mech = ana_calibrate(GaussianMechanism, args.eps, args.delta)
+    # Calibrate the noise multiplier sigma such that Gaussian mechanism with sigma achieves (eps, delta)-DP.
+    noise_mul = mech.params['sigma']
+    parser.add_argument('--noise_mul', type=float, default=noise_mul, help = 'noise multiplier calibrated from Gaussian mechanism')
     args = parser.parse_args()
     ac_labels = IndividualkNN(**vars(args))
     # return ac_labels

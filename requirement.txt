@@ -1,0 +1,9 @@
+multidict
+attr
+torch
+datasets
+sentence_transformers
+autodp
+numpy
+torchvision
+transformers

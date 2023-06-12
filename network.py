@@ -19,18 +19,7 @@ from torch.optim import lr_scheduler
 import math
 
 
-def learning_rate(init, epoch):
-    step = 25000 * epoch
-    # step = int(600000/config.nb_teachers)*epoch
-    optim_factor = 0
-    if step > 150000:
-        optim_factor = 3
-    elif step > 100000:
-        optim_factor = 2
-    elif step > 50000:
-        optim_factor = 1
 
-    return init * math.pow(0.2, optim_factor)
 
 
 def predFeature(model, dataset):
